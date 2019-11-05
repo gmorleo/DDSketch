@@ -1,0 +1,22 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/giuseppe/CLionProjects/DDSketch2/main.cpp
+iostream
+-
+math.h
+-
+limits
+-
+map
+-
+algorithm
+-
+random
+-
+
