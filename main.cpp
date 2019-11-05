@@ -27,11 +27,14 @@ int main() {
     float gamma = (1 + alpha)/(1-alpha);
     float ln_gamma = log(gamma);
 
-    int n_element = 10000000;
-
+    // Bins map
     map<int,int> bins;
-    vector<double> stream;
+    // Global counter of inserted elements
     int n = 0;
+
+    // Test with normal distribution
+    int n_element = 10000000;
+    vector<double> stream;
 
     default_random_engine generator;
     normal_distribution<double> distribution(2,4);
@@ -116,11 +119,13 @@ void expand(map<int,int> &bins, float &alpha, float &gamma, float &ln_gamma, int
 }
 
 double getQuantile(float &q, map<int,int> &bins, int &n, float &gamma, int &offset) {
-    // The getQuantile function sums up the buckets until it finds the bucket containing the q-quantile value x_q
+
+    // If q value is not in the [0,1] interval return NaN
     if (q < 0 || q > 1.01) {
         return numeric_limits<double>::quiet_NaN();
     }
 
+    // We need to sum up the buckets until it finds the bucket containing the q-quantile value x_q
     auto it = bins.begin();
     int i = it->first;
     int count = it->second;
