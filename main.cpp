@@ -20,6 +20,7 @@ void merge(map<int,int> &bins, const map<int,int> &received_bins, int &n, int &b
 
 int main() {
 
+    // Parameters of the algorithm
     int offset = DEFAULT_OFFSET;
     int bin_limit = DEFAULT_BIN_LIMIT;
     float alpha = DEFAULT_ALPHA;
@@ -47,7 +48,7 @@ int main() {
 
     sort(stream.begin(),stream.end());
 
-    float q = 0.6;
+    float q = 0.7;
     int idx = floor(1+q*(stream.size()-1));
     double quantile = getQuantile(q, bins, n, gamma, offset);
     double error = (quantile-stream[idx-1])/stream[idx-1];
@@ -105,6 +106,7 @@ void expand(map<int,int> &bins, float &alpha, float &gamma, float &ln_gamma, int
 
     double x;
     int key;
+    // Create new bins map
     map<int,int> new_bins;
 
     for (auto & bin : bins) {
@@ -112,14 +114,16 @@ void expand(map<int,int> &bins, float &alpha, float &gamma, float &ln_gamma, int
         key = getKey(x, new_ln_gamma, offset);
         new_bins[key] += bin.second;
     }
+    // Replace old bins map with new bins map
+    bins.swap(new_bins);
+    new_bins.clear();
 
-    bins = new_bins;
+    // Replace gamma and ln_gamma with the new values according the new alpha
     gamma = new_gamma;
     ln_gamma = new_ln_gamma;
 }
 
 double getQuantile(float &q, map<int,int> &bins, int &n, float &gamma, int &offset) {
-
     // If q value is not in the [0,1] interval return NaN
     if (q < 0 || q > 1.01) {
         return numeric_limits<double>::quiet_NaN();
@@ -134,17 +138,17 @@ double getQuantile(float &q, map<int,int> &bins, int &n, float &gamma, int &offs
         i = it->first;
         count += it->second;
     }
+    // Return the estimation x_q of bucket index i
     return getRank(i, gamma, offset);
 }
 
 void merge(map<int,int> &bins, const map<int,int> &received_bins, int &n, int &bin_limit, float &alpha, float &gamma, float &ln_gamma, int &offset) {
     // Merge function merges our bins map with the received bins map
-    int sum = 0;
     for (auto received_bin : received_bins) {
         bins[received_bin.first] += received_bin.second;
-        sum += received_bin.second;
         n += received_bin.second;
     }
+    // After the merge operation we need to check if the new bin size is greater than bin limit
     if ( bins.size() > bin_limit ){
         // If the bin size is more then the bin limit, we need to increase alpha and adapt all the existing buckets with
         // the new alpha
