@@ -11,6 +11,17 @@
 /// \file
 using namespace std;
 
+struct Interval {
+    double min;
+    double max;
+};
+
+struct Perc {
+    double perc_before;
+    double perc_after;
+};
+
+
 const int DEFAULT_OFFSET = 1073741824; //2^31/2
 const int DEFAULT_BIN_LIMIT = 500;
 const float DEFAULT_ALPHA = 0.01;
@@ -100,7 +111,7 @@ int main() {
     int n = 0;
 
     // Test with normal distribution
-    int n_element = 10000000;
+    int n_element = 100000;
     vector<double> stream;
 
     // generate pseudorandom number x according to the normal distribution
@@ -176,6 +187,59 @@ void add(double x, map<int,int> &bins, int bin_limit, int &n, float &alpha, floa
     }
 }
 
+Interval getInterval(int i, float gamma, int offset) {
+
+    Interval interval{};
+
+    if ( i > 0) {
+        i = i - offset;
+        interval.min = pow(gamma,i-1);
+        interval.max = pow(gamma,i);
+    } else {
+        i = i + offset;
+        interval.min = -pow(gamma,-(i-1));
+        interval.max = -pow(gamma,-i);
+    }
+
+    return interval;
+}
+
+Perc getPerInterval(int i, int k, float gamma, float new_gamma, int offset){
+
+    Interval old_interval{};
+    Interval new_interval{};
+
+    cout << "Vechio intervallo: " << endl;
+    old_interval = getInterval(i, gamma, offset);
+    cout << old_interval.min << " - " << old_interval.max << endl;
+
+    cout << "Nuovo intervallo: " << endl;
+    new_interval = getInterval(k, new_gamma, offset);
+    cout << new_interval.min << " - " << new_interval.max << endl;
+
+    double diff_min = (old_interval.min-new_interval.min);
+    double diff_max = (new_interval.max-old_interval.max);
+    cout << "Differenza sul min: " << diff_min << endl;
+    cout << "Differenza sul max: " << diff_max << endl;
+
+    double perc = 0;
+    double perc2 = 0;
+
+    if ( diff_min < 0 ) {
+        perc = abs(diff_min/(old_interval.max-old_interval.min));
+    }
+    if ( diff_max < 0 ) {
+        perc2 = abs(diff_max/(old_interval.max-old_interval.min));
+    }
+
+    Perc percent{};
+    percent.perc_before = perc;
+    percent.perc_after = perc2;
+    cout << "Percentuale che deve finire in quello precedente: " << perc << " percentuale in quello successivo: " << perc2 << endl;
+    return percent;
+}
+
+
 void expand(map<int,int> &bins, float &alpha, float &gamma, float &ln_gamma, int offset) {
 
     // We compute the new values of gamma and ln_gamma according the new alpha.
@@ -193,7 +257,10 @@ void expand(map<int,int> &bins, float &alpha, float &gamma, float &ln_gamma, int
     for (auto & bin : bins) {
         x = getRank(bin.first, gamma, offset);
         key = getKey(x, new_ln_gamma, offset);
+        
+        getPerInterval(bin.first, key, gamma, new_gamma, offset);
         new_bins[key] += bin.second;
+
     }
 
     // Replace old bins map with new bins map
