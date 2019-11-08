@@ -3,4 +3,4 @@ project(DDSketch2)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(DDSketch2 main.cpp)
+add_executable(DDSketch2 main.cpp ddsketch.cc ddsketch.h)
