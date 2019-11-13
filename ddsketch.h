@@ -181,3 +181,6 @@ extern DDS_split_interval *DDS_getSplitInterval(DDS_type *dds, int i, int k, flo
  * @return
  */
 extern int DDS_expandProportional(DDS_type *dds);
+/*
+
+extern double DDS_Split(DDS_type *dds, map<int,int> *new_bins, int new_key, int old_key, int count, float new_gamma, double temp);*/

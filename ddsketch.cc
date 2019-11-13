@@ -114,6 +114,31 @@ double DDS_GetRank(DDS_type *dds, int i)
     }
 }
 
+double DDS_GetValue(DDS_type *dds, int i) {
+
+    if ( i > 0) {
+        i -= dds->offset;
+        return pow(dds->gamma,i);
+    } else {
+        i += dds->offset;
+        return -pow(dds->gamma,-i);
+    }
+
+}
+
+double DDS_GetValue(DDS_type *dds, int i, float gamma) {
+
+    if ( i > 0) {
+        i -= dds->offset;
+        return pow(gamma,i);
+    } else {
+        i += dds->offset;
+        return -pow(gamma,-i);
+    }
+
+}
+
+
 int DDS_Add(DDS_type *dds, double item)
 {
     
@@ -286,12 +311,14 @@ void DDS_merge(DDS_type *dds1, DDS_type *dds2)
         (*(dds1->bins))[received_bin.first] += received_bin.second;
         dds1->n += received_bin.second;
     }
+
+    cout << "Size after merge = " << DDS_Size(dds1) << endl;
     
     // Check if the new bin size is greater than bin limit
     if (DDS_Size(dds1) > dds1->bin_limit){
         // If the bin size is more then the bin limit, we need to increase alpha and adapt all the existing buckets with
         // the new alpha
-        DDS_expand(dds1);
+        DDS_expandProportional(dds1);
     }
 }
 
@@ -346,6 +373,7 @@ DDS_split_interval *DDS_getSplitInterval(DDS_type *dds, int i, int k, float gamm
     return  split;
 }
 
+
 int DDS_expandProportional(DDS_type *dds){
 
     // In order to reduce the bucket's number, we need to increase the range of the bucket's index.
@@ -364,6 +392,10 @@ int DDS_expandProportional(DDS_type *dds){
     // Create new bins map
     map<int,int> *new_bins = NULL;
     new_bins = new map<int, int>();
+    if(!new_bins){
+        fprintf(stdout,"Memory allocation of a new sketch map failed\n");
+        return -1;
+    }
 
     for (auto & bin : (*dds->bins)) {
         //cout << "------------------------------------------------" << endl;
@@ -389,10 +421,226 @@ int DDS_expandProportional(DDS_type *dds){
     new_bins->clear();
     delete new_bins;
 
-    cout << "bins size" << DDS_Size(dds) << endl;
+    cout << "Size after expand = " << DDS_Size(dds) << endl;
 
     dds->gamma = new_gamma;
     dds->ln_gamma = new_ln_gamma;
 
     return 0;
+}
+
+/*int DDS_expandProportional(DDS_type *dds){
+
+    // In order to reduce the bucket's number, we need to increase the range of the bucket's index.
+    // We compute the new values of gamma and ln_gamma according the new alpha.
+    dds->alpha += 0.01;
+    cout << "New alpha = " << dds->alpha << endl;
+    float new_gamma = ((1 + dds->alpha)/(1 - dds->alpha));
+    float new_ln_gamma = log(new_gamma);
+
+    double item;
+    int key;
+
+    // Create new bins map
+    map<int,int> *new_bins = NULL;
+    new_bins = new map<int, int>();
+    if(!new_bins){
+        fprintf(stdout,"Memory allocation of a new sketch map failed\n");
+        return -1;
+    }
+
+    for (auto & bin : (*dds->bins)) {
+        //cout << "------------------------------------------------" << endl;
+        item = DDS_GetRank(dds, bin.first);
+        key = DDS_GetKey(dds, item, new_ln_gamma);
+
+        double temp = 0;
+
+        double old_max = DDS_GetValue(dds, bin.first);
+        double old_min = DDS_GetValue(dds, (bin.first-1));
+
+        double new_max = DDS_GetValue(dds, key, new_gamma);
+        double new_min = DDS_GetValue(dds, ( key - 1 ), new_gamma);
+
+        int precedent = floor( bin.second * DDS_Split(old_max - old_min, old_max, new_max) );
+        int next = floor( bin.second * DDS_Split(old_max - old_min, new_min, old_min) );
+
+        if ( precedent != 0) {
+            (*new_bins)[key-1] += precedent;
+        }
+        if ( next != 0  ) {
+            (*new_bins)[key+1] += next;
+        }
+        if ( bin.second - next - precedent != 0) {
+            (*new_bins)[key] += bin.second - next - precedent;
+        }
+
+
+    }
+
+    // Replace old bins map with new bins map
+    dds->bins->swap(*new_bins);
+    new_bins->clear();
+    delete new_bins;
+
+    cout << "Size after expand = " << DDS_Size(dds) << endl;
+
+    dds->gamma = new_gamma;
+    dds->ln_gamma = new_ln_gamma;
+
+    return 0;
+}*/
+
+/*int DDS_expandProportional(DDS_type *dds){
+
+    // In order to reduce the bucket's number, we need to increase the range of the bucket's index.
+    // We compute the new values of gamma and ln_gamma according the new alpha.
+    dds->alpha += 0.01;
+    cout << "New alpha = " << dds->alpha << endl;
+    float new_gamma = ((1 + dds->alpha)/(1 - dds->alpha));
+    float new_ln_gamma = log(new_gamma);
+
+    double item;
+    int key;
+
+    // Create new bins map
+    map<int,int> *new_bins = NULL;
+    new_bins = new map<int, int>();
+    if(!new_bins){
+        fprintf(stdout,"Memory allocation of a new sketch map failed\n");
+        return -1;
+    }
+
+    for (auto & bin : (*dds->bins)) {
+        //cout << "------------------------------------------------" << endl;
+        item = DDS_GetRank(dds, bin.first);
+        key = DDS_GetKey(dds, item, new_ln_gamma);
+
+        double temp = 0;
+
+        double old_max = DDS_GetValue(dds, bin.first);
+        double old_min = DDS_GetValue(dds, (bin.first-1));
+
+        double new_max = DDS_GetValue(dds, key, new_gamma);
+        if ( old_max > new_max) {
+            double perc_next = abs(( old_max - new_max ) / ( old_max - old_min ) );
+            if ( perc_next > 1 ) {
+                perc_next = 1;
+            }
+            (*new_bins)[key + 1] += floor(bin.second * perc_next);
+            temp += floor(bin.second * perc_next);
+        }
+
+        double new_min = DDS_GetValue(dds, ( key - 1 ), new_gamma);
+        if ( new_min > old_min ) {
+            double perc_prec = abs(( old_min - new_min ) / ( old_max - old_min ) );
+            if ( perc_prec > 1 ) {
+                perc_prec = 1;
+            }
+            (*new_bins)[key - 1] += floor(bin.second * perc_prec);
+            temp += floor(bin.second * perc_prec);
+        }
+
+        (*new_bins)[key] += bin.second - temp;
+    }
+
+    // Replace old bins map with new bins map
+    dds->bins->swap(*new_bins);
+    new_bins->clear();
+    delete new_bins;
+
+    cout << "Size after expand = " << DDS_Size(dds) << endl;
+
+    dds->gamma = new_gamma;
+    dds->ln_gamma = new_ln_gamma;
+
+    return 0;
+}*/
+
+/*int DDS_expandProportional(DDS_type *dds){
+
+    // In order to reduce the bucket's number, we need to increase the range of the bucket's index.
+    // We compute the new values of gamma and ln_gamma according the new alpha.
+    dds->alpha += 0.01;
+    cout << "New alpha = " << dds->alpha << endl;
+    float new_gamma = ((1 + dds->alpha)/(1 - dds->alpha));
+    float new_ln_gamma = log(new_gamma);
+
+
+    double item;
+    int key;
+
+    // Create new bins map
+    map<int,int> *new_bins = NULL;
+    new_bins = new map<int, int>();
+    if(!new_bins){
+        fprintf(stdout,"Memory allocation of a new sketch map failed\n");
+        return -1;
+    }
+
+    for (auto & bin : (*dds->bins)) {
+        //cout << "------------------------------------------------" << endl;
+        item = DDS_GetRank(dds, bin.first);
+        key = DDS_GetKey(dds, item, new_ln_gamma);
+
+        double temp = 0;
+
+        temp = DDS_Split(dds, new_bins, key, bin.first, bin.second, new_gamma, temp);
+
+        (*new_bins)[key] += bin.second - temp;
+    }
+
+    // Replace old bins map with new bins map
+    dds->bins->swap(*new_bins);
+    new_bins->clear();
+    delete new_bins;
+
+    cout << "Size after expand = " << DDS_Size(dds) << endl;
+
+    dds->gamma = new_gamma;
+    dds->ln_gamma = new_ln_gamma;
+
+    return 0;
+}*/
+/*
+
+double DDS_Split(DDS_type *dds, map<int,int> *new_bins, int new_key, int old_key, int count, float new_gamma, double temp) {
+
+    double old_max = DDS_GetValue(dds, old_key);
+    double old_min = DDS_GetValue(dds, (old_key-1));
+
+    double new_max = DDS_GetValue(dds, new_key, new_gamma);
+    if ( old_max > new_max) {
+        double perc_next = abs(( old_max - new_max ) / ( old_max - old_min ) );
+        if ( perc_next > 1.01 ) {
+            return temp + DDS_Split(dds, new_bins, new_key+1, old_key, count, new_gamma, temp);
+        } else {
+            (*new_bins)[new_key+1] += floor(count * perc_next);
+            temp += floor(count * perc_next);
+            return temp;
+        }
+    }
+    double new_min = DDS_GetValue(dds, ( new_key - 1 ), new_gamma);
+    if ( new_min > old_min) {
+        double perc_prec = abs(( old_min - new_min ) / ( old_max - old_min ) );
+        if ( perc_prec > 1.01 ) {
+            return temp + DDS_Split(dds, new_bins, new_key+1, old_key, count, new_gamma, temp);
+        }
+        (*new_bins)[new_key - 1] += floor(count * perc_prec);
+        temp += floor(count * perc_prec);
+        return temp;
+    }
+}*/
+
+
+double DDS_Split(double lenght, double a, double b) {
+    if ( a > b) {
+        double perc = abs(( a - b ) / lenght );
+        if ( perc > 1 ) {
+            perc = 1;
+        }
+        return perc;
+    } else {
+        return 0;
+    }
 }
