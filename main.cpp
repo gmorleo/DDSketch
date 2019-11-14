@@ -14,39 +14,40 @@
 using namespace std;
 
 const int DEFAULT_OFFSET = 1073741824; //2^31/2
-const int DEFAULT_BIN_LIMIT = 500;
-const float DEFAULT_ALPHA = 0.04;
+const int DEFAULT_BIN_LIMIT = 1000;
+const float DEFAULT_ALPHA = 0.01;
 
-void printDataset(int n_element) {
+int printDataset(const string& name, int n_element) {
 
+    // open file for output
     ofstream file;
-    file.open("normal_mean_2_stdev_3.csv");
+    file.open(name);
+    if (file.fail()) {
+        cout << "File not open" << endl;;
+        return -1;
+    }
 
+    // generate with normal distribution
     default_random_engine generator;
     normal_distribution<double> distribution(2,3);
 
     double item;
 
     for (int i = 0; i < n_element; i++) {
+
         item = distribution(generator);
         file << item << ", \n";
+
     }
 
     file.close();
+
+    return 0;
 }
 
-int main() {
-
-    // init the sketch
-    DDS_type *dds = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
-    DDS_type *dds2 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
-
+int insertNormalDistribution(DDS_type *dds, double* stream, int n_element) {
 
     // Test with normal distribution
-    int n_element = 1000000000;
-    vector<double> stream;
-    vector<double> stream2;
-
     default_random_engine generator;
     normal_distribution<double> distribution(2,3);
     double item;
@@ -55,63 +56,92 @@ int main() {
     // insert item into the stream vector and
     // add it to our DDSketch
     for (int i = 0; i < n_element; i++) {
-        item = distribution(generator);
-        stream.insert(stream.end(), item);
-        DDS_Add(dds, item);
-    }
-/*
-    normal_distribution<double> distribution2(1,4);
 
-    for (int i = 0; i < n_element; i++) {
         item = distribution(generator);
-        stream2.insert(stream2.end(), item);
-        DDS_Add(dds2, item);
+        stream[i] = item;
+        //int return_value = DDS_Add(dds, item);
+        int return_value = DDS_AddRemapped(dds, item);
+        if(return_value < 0){
+            return -1;
+        }
     }
 
-    stream.insert(stream.end(), stream2.begin(), stream2.end());
-    DDS_merge(dds,dds2);*/
+    return 0;
+}
 
-    // sort the vector
-    //sort(stream.begin(),stream.end());
+int printQuantile(DDS_type *dds, double* stream, int n_element) {
 
     // Determine the quantile
     float q[] = { 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99};
     int n_q = 10;
 
     for ( int i = 0; i < n_q; i++ ) {
-        int idx = floor(1+q[i]*(stream.size()-1));
+
+        int idx = floor(1+q[i]*(n_element-1));
         // determine the correct answer
         // i.e., the number stored at the index (idx-1) in the sorted permutation of the vector
         // note that we are not sorting the vector, we are using the quickselect() algorithm
         // which in C++ is available as std::nth_element
-        nth_element(stream.begin(), stream.begin() + (idx-1), stream.end());
+        nth_element(stream, stream + (idx-1), stream +  n_element);
         double quantile = DDS_GetQuantile(dds, q[i]);
+        if (quantile == numeric_limits<double>::quiet_NaN()) {
+            cout << "q must be in the interval [0,1]" << endl;
+            return  -2;
+        }
         double error = abs((quantile-stream[idx-1])/stream[idx-1]);
+
         cout << "q: " << std::setw(4) << q[i] << " estimate: " << std::setw(10) << quantile << " real: " << std::setw(10) << stream[idx-1] << " error: " << std::setw(10) << error << endl;
     }
 
-    // check the number of element counted in bins map
-    DDS_SumBins(dds);
-    DDS_PrintCSV(dds);
-    cout << "max key: " << DDS_GetRank(dds, dds->bins->rbegin()->first) << endl;
+    return  0;
+}
+
+int deleteElements(DDS_type* dds, double* stream, int n_element) {
 
     // now check that delete works
     cout << "Sketch size (number of bins) before delete is equal to " << DDS_Size(dds) << endl;
     cout << "Number of items in the sketch is equal to " << dds->n << endl;
-    for (double item : stream) {
-        DDS_Delete(dds, item);
+    for (int i = 0; i < n_element; i++) {
+        //DDS_Delete(dds, stream[i]);
+        DDS_DeleteCollapseNeighborn(dds, stream[i]);
         //DDS_CheckAll(dds, item);
     }
-
 
     cout << "Sketch size (number of bins) after delete is equal to " << DDS_Size(dds) << endl;
     cout << "Number of items in the sketch is equal to " << dds->n << endl;
 
+    DDS_PrintCSV("bins.csv", dds->bins);
+
+    return 0;
+}
+
+
+
+int main() {
+
+    // init the sketch
+    DDS_type *dds = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
+
+    // number of element
+    int n_element = pow(10,7);
+
+    // init array for all the elements
+    double* stream = NULL;
+    stream = new (nothrow) double[n_element];
+    if(!stream){
+        cout << "Not enough memory" << endl;;
+        return -2;
+    }
+
+    insertNormalDistribution(dds, stream, n_element);
+    printQuantile(dds, stream, n_element);
+    deleteElements(dds, stream, n_element);
+
+    // print dataset on a file
+    //printDataset("normal.csv", n_element);
+
     // deallocate the sketch data structure
     DDS_Destroy(dds);
-
-    printDataset(n_element);
-
 
     return 0;
 }

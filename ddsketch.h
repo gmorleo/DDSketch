@@ -36,21 +36,14 @@ typedef struct DDS_type{
     map<int, int> *bins;
     /// this parameter keeps track of the number of items added to the sketch
     int n;
+
+    /// remap
+    map<int, int> *remap;
+    bool remapped;
 } DDS_type;
 
-typedef  struct DDS_interval {
-    double min;
-    double max;
-    double lenght;
-} DDS_interval;
-
-typedef struct DDS_split_interval {
-    double precedent;
-    double next;
-} DDS_split_interval;
-
 /**
- * /brief               DDS costructor
+ * @brief               DDS costructor
  * @param offset        Used to allow the skecth storing both positive, 0 and negative values
  * @param bin_limit     The maximum number of bins
  * @param alpha         The alpha-accuraxy level of q-quantile
@@ -104,6 +97,23 @@ extern double DDS_GetRank(DDS_type *dds, int i);
 extern int DDS_Add(DDS_type *dds, double item);
 
 /**
+ *
+ * @param dds
+ * @param i
+ * @return
+ */
+double DDS_GetBound(DDS_type *dds, int i);
+
+/**
+ *
+ * @param dds
+ * @param i
+ * @param gamma
+ * @return
+ */
+double DDS_GetBound(DDS_type *dds, int i, float gamma);
+
+/**
  * \brief               This function deletes the bucket with index associated with the value (item) if it exists and its value is equal to 1 otherwise it simply decrements by 1 the bucket's counter
  * @param dds           User-supplied parameters
  * @param item          The the input value
@@ -134,53 +144,39 @@ extern double DDS_GetQuantile(DDS_type *dds, float q);
 extern void DDS_merge(DDS_type *dds1, DDS_type *dds2);
 
 /**
- *
- * @param dds
- * @return
+ * @brief                   This function computes the sum of all counter of the bins
+ * @param dds               Parameters of the sketch
+ * @return                  int
  */
 extern int DDS_SumBins(DDS_type *dds);
 
 /**
- *
- * @param dds
- * @return
+ * @brief                   This function prints the bins map in a CSV file
+ * @param name              File name
+ * @param bins              Bins map
+ * @return                  0 success
  */
-extern int DDS_PrintCSV(DDS_type *dds);
+extern int DDS_PrintCSV(string name, map<int,int> *bins);
 
 /**
- *
- * @param dds
- * @param item
- * @return
+ * @brief                   This function checks if all the elements in the stream have a corresponding bucket
+ * @param dds               Parameters of the sketch
+ * @param item              Input value
+ * @return                  0 success, -1 failed
  */
 extern int DDS_CheckAll(DDS_type *dds, double item);
 
 /**
- *
- * @param dds
- * @param i
- * @param gamma
- * @return
- */
-extern DDS_interval *DDS_getInterval(DDS_type *dds, int i, float gamma);
-
-/**
- *
- * @param dds
- * @param i
- * @param k
- * @param gamma_i
- * @param gamma_k
- * @return
- */
-extern DDS_split_interval *DDS_getSplitInterval(DDS_type *dds, int i, int k, float gamma_i, float gamma_k);
-
-/**
- *
- * @param dds
- * @return
+ * @brief                   This function expands all the bins in the map, increasing alpha by 0.01. The values in the old range are redistributed in the new range with a proportional way (supposing all values uniforming distributed on the interval)
+ * @param dds               Parameters of the sketch
+ * @return                  0 success
  */
 extern int DDS_expandProportional(DDS_type *dds);
-/*
 
-extern double DDS_Split(DDS_type *dds, map<int,int> *new_bins, int new_key, int old_key, int count, float new_gamma, double temp);*/
+extern int DDS_Collapse(DDS_type *dds);
+
+extern int DDS_CollapseNeighborn(DDS_type *dds);
+
+extern int DDS_AddRemapped(DDS_type *dds, double item);
+
+extern int DDS_DeleteCollapseNeighborn(DDS_type *dds, double item);
