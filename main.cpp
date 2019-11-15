@@ -15,7 +15,7 @@ using namespace std;
 
 const int DEFAULT_OFFSET = 1073741824; //2^31/2
 const int DEFAULT_BIN_LIMIT = 500;
-const float DEFAULT_ALPHA = 0.01;
+const double DEFAULT_ALPHA = 0.01;
 
 int printDataset(const string& name, int n_element) {
 
@@ -110,8 +110,6 @@ int deleteElements(DDS_type* dds, double* stream, int n_element) {
     cout << "Sketch size (number of bins) after delete is equal to " << DDS_Size(dds) << endl;
     cout << "Number of items in the sketch is equal to " << dds->n << endl;
 
-    DDS_PrintCSV("bins.csv", dds->bins);
-
     return 0;
 }
 
@@ -123,7 +121,7 @@ int main() {
     DDS_type *dds = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
 
     // number of element
-    int n_element = pow(10,7);
+    int n_element = pow(10,8);
 
     // init array for all the elements
     double* stream = NULL;

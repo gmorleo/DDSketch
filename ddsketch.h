@@ -27,11 +27,11 @@ typedef struct DDS_type{
     /// maximum number of bins
     int bin_limit;
     /// this parameter defines alpha-accuracy of a q-quantile
-    float alpha;
+    double alpha;
     /// this parameter is defined as (1 + alpha)/(1-alpha)
-    float gamma;
+    double gamma;
     /// this is not a required parameter; it is defined as log(gamma)
-    float ln_gamma;
+    double ln_gamma;
     /// this map implements the bins of DDSketch
     map<int, int> *bins;
     /// this parameter keeps track of the number of items added to the sketch
@@ -50,7 +50,7 @@ typedef struct DDS_type{
  * @param alpha         The alpha-accuraxy level of q-quantile
  * @return              Parameters of the sketch
  */
-extern DDS_type *DDS_Init(int offset, int bin_limit, float alpha);
+extern DDS_type *DDS_Init(int offset, int bin_limit, double alpha);
 
 /**
  * /brief               DDS destructor
@@ -157,7 +157,7 @@ extern int DDS_SumBins(DDS_type *dds);
  * @param bins          Bins map
  * @return              0 success
  */
-extern int DDS_PrintCSV(string name, map<int,int> *bins);
+extern int DDS_PrintCSV(DDS_type* dds, string name);
 
 /**
  * @brief               This function checks if all the elements in the stream have a corresponding bucket
@@ -210,3 +210,6 @@ extern int DDS_DeleteCollapseNeighborn(DDS_type *dds, double item);
  * @return
  */
 extern int DDS_CollapsePlus(DDS_type *dds);
+
+extern int DDS_RemoveOffset(DDS_type* dds, int i);
+extern int DDS_AddOffset(DDS_type* dds, int i);
