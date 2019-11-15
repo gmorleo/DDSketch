@@ -595,7 +595,7 @@ int DDS_CollapsePlus(DDS_type *dds) {
 
             if ( prev_bin->first == key-1) {
                 (*new_bins)[new_key] += it->second + prev_bin->second;
-                cout << "pippo "<< endl;
+                cout << " true "<< endl;
             } else {
                 (*new_bins)[new_key] += it->second;
             }
