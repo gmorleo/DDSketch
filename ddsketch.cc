@@ -160,8 +160,19 @@ int DDS_Add(DDS_type *dds, double item)
 
     if (DDS_Size(dds) > dds->bin_limit ){
         // If the bin size is greater than bin_limit, we need to increase alpha and adapt all of the existing buckets to the new alpha value
-       
-        int return_value = DDS_Collapse(dds);
+
+        // expand with alpha += 0.01
+        //int return_value = DDS_expand(dds);
+
+        // expand with alpha + = 0.01 with proportional redistribution
+        //int return_value = DDS_expandProportional(dds);
+
+        // collapse the last two bins
+        //int return_value = DDS_Collapse(dds);
+
+        // collapse with gamma^2
+        int return_value = DDS_CollapsePlus(dds);
+
         if(return_value < 0){
             return -1;
         }
@@ -190,7 +201,7 @@ int DDS_AddRemapped(DDS_type *dds, double item)
     if (DDS_Size(dds) > dds->bin_limit ){
         // If the bin size is greater than bin_limit, we need to increase alpha and adapt all of the existing buckets to the new alpha value
 
-        int return_value = DDS_CollapseNeighborn(dds);
+        int return_value = DDS_CollapseNeighbors(dds);
         if(return_value < 0){
             return -1;
         }
@@ -238,7 +249,7 @@ int DDS_Delete(DDS_type *dds, double item)
 
 }
 
-int DDS_DeleteCollapseNeighborn(DDS_type *dds, double item)
+int DDS_DeleteCollapseNeighbors(DDS_type *dds, double item)
 {
 
     // this function deletes the bucket with index associated with the value (item) if it exists and its value is equal to 1
@@ -305,9 +316,11 @@ int DDS_expand(DDS_type *dds)
     }
 
     for (auto & bin : (*(dds->bins))) {
+
         item = DDS_GetRank(dds, bin.first);
         key = DDS_GetKey(dds, item, new_ln_gamma);
         (*new_bins)[key] += bin.second;
+
     }
     
     // Replace old bins map with new bins map
@@ -336,7 +349,11 @@ int DDS_SumBins(DDS_type *dds) {
 int DDS_PrintCSV(string name, map<int,int> *bins) {
 
     ofstream file;
-    file.open("bins.csv");
+    file.open(name);
+    if (file.fail()) {
+        cout << "Error with file " << name << endl;
+        return -1;
+    }
 
     for (auto& b: *bins) {
         file << b.first << ", ";
@@ -352,7 +369,7 @@ int DDS_CheckAll(DDS_type *dds, double item) {
 
     int key = DDS_GetKey(dds, item);
 
-    map<int, int>::iterator it = dds->bins->find(key);
+    auto it = dds->bins->find(key);
     if (it == dds->bins->end()){
         cout << "Not found key = " << key << endl;
         return -1;
@@ -374,9 +391,11 @@ double DDS_GetQuantile(DDS_type *dds, float q)
     int count = it->second;
     
     while (count <= q*(dds->n - 1)) {
+
         ++it;
         i = it->first;
         count += it->second;
+
     }
     
     // Return the estimation x_q of bucket index i
@@ -409,7 +428,6 @@ int DDS_expandProportional(DDS_type *dds){
     // In order to reduce the bucket's number, we need to increase the range of the bucket's index.
     // We compute the new values of gamma and ln_gamma according the new alpha.
     dds->alpha += 0.01;
-    cout << "New alpha = " << dds->alpha << endl;
     float new_gamma = ((1 + dds->alpha)/(1 - dds->alpha));
     float new_ln_gamma = log(new_gamma);
 
@@ -425,6 +443,7 @@ int DDS_expandProportional(DDS_type *dds){
     }
 
     for (auto & bin : (*dds->bins)) {
+
         item = DDS_GetRank(dds, bin.first);
         key = DDS_GetKey(dds, item, new_ln_gamma);
 
@@ -440,25 +459,34 @@ int DDS_expandProportional(DDS_type *dds){
 
         // If the old max is greater than the new max, a portion of elements must be distributed in the next bin
         if ( old_max > new_max) {
+
             perc_next = abs((old_max-new_max)/(old_max-old_min));
+
             // Saturation
             if ( perc_next > 1 ) {
                 perc_next = 1;
             }
+
             (*new_bins)[key + 1] += floor(bin.second * perc_next);;
+
         }
 
         // If the old min is fewer than the new min, a portion of elements must be distributed in the precedent bin
         if ( old_min < new_min ) {
+
             perc_prec = abs((new_min-old_min)/(old_max-old_min));
+
             // Saturation
             if ( perc_prec > 1 ) {
                 perc_prec = 1;
             }
+
             (*new_bins)[key - 1] += floor(bin.second * perc_prec);;
+
         }
 
         current = bin.second - floor(bin.second * perc_prec) - floor(bin.second * perc_next);
+
         if ( current != 0 ) {
             (*new_bins)[key] += current;
         }
@@ -479,6 +507,8 @@ int DDS_expandProportional(DDS_type *dds){
 
 int DDS_Collapse(DDS_type *dds) {
 
+    // collapse the second last bucket into the last bucket
+
     auto last = dds->bins->rbegin();
     auto second_last = --dds->bins->rbegin();
 
@@ -488,7 +518,9 @@ int DDS_Collapse(DDS_type *dds) {
     return  0;
 }
 
-int DDS_CollapseNeighborn(DDS_type *dds){
+int DDS_CollapseNeighbors(DDS_type *dds){
+
+    // It works for only one collapsing for now
 
     dds->remapped = true;
 
@@ -505,15 +537,20 @@ int DDS_CollapseNeighborn(DDS_type *dds){
 
     int prec_key = 0;
     for (auto & bin: (*dds->bins)) {
+
         int key = bin.first;
         if ( prec_key == key-1 ) {
+
             (*dds->remap)[key-1] = key-1;
             (*dds->remap)[key] = key-1;
             (*new_bins)[key-1] += bin.second;
             prec_key = 0;
+
         } else {
+
             (*new_bins)[key] += bin.second;
             prec_key = key;
+
         }
     }
 
@@ -525,5 +562,80 @@ int DDS_CollapseNeighborn(DDS_type *dds){
     cout << "Size after expand = " << DDS_Size(dds) << endl;
 
     return 0;
+
+}
+
+int DDS_CollapsePlus(DDS_type *dds) {
+
+    cout << "Size before collapse: " << DDS_Size(dds) << " sum: " << DDS_SumBins(dds) << endl;
+    float new_gamma = pow(dds->gamma,2);
+    float new_ln_gamma = log(new_gamma);
+    float new_alpha = ( 2 * dds->alpha ) / ( 1 + pow(dds->alpha,2));
+
+    // Create new bins map
+    map<int,int> *new_bins = NULL;
+    new_bins = new (nothrow) map<int, int>();
+    if(!new_bins){
+        fprintf(stdout,"Memory allocation of a new sketch map failed\n");
+        return -1;
+    }
+
+    //DDS_PrintCSV("prima.csv", dds->bins);
+
+    for ( auto it = dds->bins->begin(); it != dds->bins->end(); ++it) {
+
+        int key = it->first;
+
+        // check if is even
+        if ( key%2 == 0 ) {
+
+            // check if the previous bucket exist
+            int new_key = ceil((key-1)/2);
+            auto prev_bin = prev(it, 1);
+
+            if ( prev_bin->first == key-1) {
+                (*new_bins)[new_key] += it->second + prev_bin->second;
+                cout << "pippo "<< endl;
+            } else {
+                (*new_bins)[new_key] += it->second;
+            }
+
+        } else {
+
+            // check if the next bucket exist
+            int new_key = ceil((key+1)/2);
+            auto next_bin = next(it, 1);
+
+            if ( next_bin->first == key+1) {
+
+                (*new_bins)[new_key] += it->second + next_bin->second;
+                // we have to skip the next bucket because we have already considered it in this interaction
+                ++it;
+                if ( it == dds->bins->end() ) {
+                    break;
+                }
+
+            } else {
+                (*new_bins)[new_key] += it->second;
+            }
+
+        }
+    }
+
+    // Replace old bins map with new bins map
+    dds->bins->swap(*new_bins);
+    new_bins->clear();
+    delete new_bins;
+
+    //DDS_PrintCSV("dopo.csv", dds->bins);
+
+    dds->gamma = new_gamma;
+    dds->ln_gamma = new_ln_gamma;
+    dds->alpha = new_alpha;
+
+    cout << "Size after collapse = " << DDS_Size(dds) << " sum: " << DDS_SumBins(dds) << " alpha: " << dds->alpha << " gamma: " << dds->gamma << endl;
+
+    return 0;
+
 
 }

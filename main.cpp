@@ -14,7 +14,7 @@
 using namespace std;
 
 const int DEFAULT_OFFSET = 1073741824; //2^31/2
-const int DEFAULT_BIN_LIMIT = 1000;
+const int DEFAULT_BIN_LIMIT = 500;
 const float DEFAULT_ALPHA = 0.01;
 
 int printDataset(const string& name, int n_element) {
@@ -59,8 +59,8 @@ int insertNormalDistribution(DDS_type *dds, double* stream, int n_element) {
 
         item = distribution(generator);
         stream[i] = item;
-        //int return_value = DDS_Add(dds, item);
-        int return_value = DDS_AddRemapped(dds, item);
+        int return_value = DDS_Add(dds, item);
+        //int return_value = DDS_AddRemapped(dds, item);
         if(return_value < 0){
             return -1;
         }
@@ -102,8 +102,8 @@ int deleteElements(DDS_type* dds, double* stream, int n_element) {
     cout << "Sketch size (number of bins) before delete is equal to " << DDS_Size(dds) << endl;
     cout << "Number of items in the sketch is equal to " << dds->n << endl;
     for (int i = 0; i < n_element; i++) {
-        //DDS_Delete(dds, stream[i]);
-        DDS_DeleteCollapseNeighborn(dds, stream[i]);
+        DDS_Delete(dds, stream[i]);
+        //DDS_DeleteCollapseNeighbors(dds, stream[i]);
         //DDS_CheckAll(dds, item);
     }
 
