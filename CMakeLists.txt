@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
-project(DDSketch2)
+project(DDSketch)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(DDSketch2 main.cpp ddsketch.cc ddsketch.h)
+add_executable(DDSKetch main.cpp ddsketch.cc ddsketch.h)
