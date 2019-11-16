@@ -211,5 +211,27 @@ extern int DDS_DeleteCollapseNeighborn(DDS_type *dds, double item);
  */
 extern int DDS_CollapsePlus(DDS_type *dds);
 
+/**
+ *
+ * @param dds
+ * @param i
+ * @return
+ */
 extern int DDS_RemoveOffset(DDS_type* dds, int i);
+
+/**
+ *
+ * @param dds
+ * @param i
+ * @return
+ */
 extern int DDS_AddOffset(DDS_type* dds, int i);
+
+/**
+ *
+ * @param dds
+ * @param i
+ * @param of
+ * @return
+ */
+extern int DDS_NewKey(DDS_type* dds,  double i, int of);

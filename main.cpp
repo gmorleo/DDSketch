@@ -15,7 +15,7 @@ using namespace std;
 
 const int DEFAULT_OFFSET = 1073741824; //2^31/2
 const int DEFAULT_BIN_LIMIT = 500;
-const double DEFAULT_ALPHA = 0.01;
+const double DEFAULT_ALPHA = 0.008;
 
 int printDataset(const string& name, int n_element) {
 
@@ -72,8 +72,8 @@ int insertNormalDistribution(DDS_type *dds, double* stream, int n_element) {
 int printQuantile(DDS_type *dds, double* stream, int n_element) {
 
     // Determine the quantile
-    float q[] = { 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99};
-    int n_q = 10;
+    float q[] = { 0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99};
+    int n_q = 11;
 
     for ( int i = 0; i < n_q; i++ ) {
 

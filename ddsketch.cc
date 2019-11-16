@@ -20,16 +20,16 @@ University of Salento, Italy
 
 DDS_type *DDS_Init(int offset, int bin_limit, double alpha)
 {
-    
+
     // Initialize the sketch based on user-supplied parameters
     DDS_type *dds = NULL;
-    
+
     dds = new(DDS_type); // do not use the C malloc() function: it does not call C++ constructors
     if(!dds){
         fprintf(stdout,"Memory allocation of sketch data structure failed\n");
         return NULL;
     }
-    
+
     dds->offset = offset;
     dds->bin_limit = bin_limit;
     dds->alpha = alpha;
@@ -41,7 +41,7 @@ DDS_type *DDS_Init(int offset, int bin_limit, double alpha)
         delete dds;
         return NULL;
     }
-    
+
     dds->n = 0;
 
     //remap
@@ -61,10 +61,14 @@ void DDS_Destroy(DDS_type *dds)
 {
     // get rid of a sketch and free up the space
     if (!dds) return;
-    
+
     // deallocate the map
     if (dds->bins){
         delete dds->bins;
+    }
+
+    if (dds->remap){
+        delete dds->remap;
     }
 
     // now free the whole data structure
@@ -81,7 +85,7 @@ int DDS_GetKey(DDS_type *dds, double item)
 {
     // Given a value (item), returns the correspondning bucket index
     int key;
-    
+
     if (item > 0) {
         key = int(ceil((log(item))/dds->ln_gamma)) + dds->offset;
     } else if (item < 0) {
@@ -89,16 +93,16 @@ int DDS_GetKey(DDS_type *dds, double item)
     } else {
         key = 0;
     }
-    
+
     return key;
-    
+
 }
 
 int DDS_GetKey(DDS_type *dds, double item, float ln_gamma)
 {
     // Given a value (item), returns the correspondning bucket index
     int key;
-    
+
     if (item > 0) {
         key = int(ceil((log(item))/ln_gamma)) + dds->offset;
     } else if (item < 0) {
@@ -106,16 +110,16 @@ int DDS_GetKey(DDS_type *dds, double item, float ln_gamma)
     } else {
         key = 0;
     }
-    
+
     return key;
-    
+
 }
 
 double DDS_GetRank(DDS_type *dds, int i)
 {
-    
+
     // Given a bucket index (i), this function returns the estimation of the rank x_q
-    
+
     if (i > 0) {
         i -= dds->offset;
         return (2 * pow(dds->gamma, i))/(dds->gamma + 1);
@@ -151,10 +155,10 @@ double DDS_GetBound(DDS_type *dds, int i, float gamma) {
 
 int DDS_Add(DDS_type *dds, double item)
 {
-    
+
     // this function creates a new bucket with index associated with the value (item), or if that bucket already exists, it
     // simply add 1 to the bucket's counter
-    
+
     int key = DDS_GetKey(dds, item);
     (*(dds->bins))[key] += 1;
     dds->n += 1;
@@ -177,9 +181,9 @@ int DDS_Add(DDS_type *dds, double item)
             return -1;
         }
     }
-    
+
     return 0;
-    
+
 }
 
 int DDS_AddRemapped(DDS_type *dds, double item)
@@ -396,7 +400,7 @@ double DDS_GetQuantile(DDS_type *dds, float q)
     auto it = dds->bins->begin();
     int i = it->first;
     int count = it->second;
-    
+
     while (count <= q*(dds->n - 1)) {
 
         ++it;
@@ -404,15 +408,15 @@ double DDS_GetQuantile(DDS_type *dds, float q)
         count += it->second;
 
     }
-    
+
     // Return the estimation x_q of bucket index i
     return DDS_GetRank(dds, i);
-    
+
 }
 
 void DDS_merge(DDS_type *dds1, DDS_type *dds2)
 {
-   
+
     // Merge function merges the bins in dds1 with the bins of dds2
     // dds1 is the result of the merge operation
     for (auto received_bin : (*(dds2->bins))) {
@@ -421,7 +425,7 @@ void DDS_merge(DDS_type *dds1, DDS_type *dds2)
     }
 
     cout << "Size after merge = " << DDS_Size(dds1) << endl;
-    
+
     // Check if the new bin size is greater than bin limit
     if (DDS_Size(dds1) > dds1->bin_limit){
         // If the bin size is more then the bin limit, we need to increase alpha and adapt all the existing buckets with
