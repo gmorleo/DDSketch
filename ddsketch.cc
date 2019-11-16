@@ -1,15 +1,15 @@
 /********************************************************************
-DDSketch
+ DDSketch
 
-An algorithm for tracking quantiles in data streams
+ An algorithm for tracking quantiles in data streams
 
-Charles Masson, Jee E. Rim, and Homin K. Lee. 2019. DDSketch: a fast and fully-mergeable quantile sketch with relative-error guarantees. Proc. VLDB Endow. 12, 12 (August 2019), 2195-2205. DOI: https://doi.org/10.14778/3352063.3352135
+ Charles Masson, Jee E. Rim, and Homin K. Lee. 2019. DDSketch: a fast and fully-mergeable quantile sketch with relative-error guarantees. Proc. VLDB Endow. 12, 12 (August 2019), 2195-2205. DOI: https://doi.org/10.14778/3352063.3352135
 
-This implementation by
-by Giuseppe Morleo
-University of Salento, Italy
+ This implementation by
+ by Giuseppe Morleo
+ University of Salento, Italy
 
-*********************************************************************/
+ *********************************************************************/
 /// \file
 
 #include <fstream>
@@ -131,6 +131,8 @@ double DDS_GetRank(DDS_type *dds, int i)
 
 double DDS_GetBound(DDS_type *dds, int i) {
 
+    // This function returns the bound associated with the key (i), (gamma^i)
+
     if ( i > 0) {
         i -= dds->offset;
         return pow(dds->gamma,i);
@@ -142,6 +144,8 @@ double DDS_GetBound(DDS_type *dds, int i) {
 }
 
 double DDS_GetBound(DDS_type *dds, int i, float gamma) {
+
+    // This function returns the bound associated with the key (i), (gamma^i)
 
     if ( i > 0) {
         i -= dds->offset;
@@ -188,6 +192,8 @@ int DDS_Add(DDS_type *dds, double item)
 
 int DDS_AddRemapped(DDS_type *dds, double item)
 {
+
+    // The Add function according the DDS_CollapseNeighbors
 
     // this function creates a new bucket with index associated with the value (item), or if that bucket already exists, it
     // simply add 1 to the bucket's counter
@@ -244,6 +250,7 @@ int DDS_Delete(DDS_type *dds, double item)
 
     }
     else{
+        return -1;
         //cout << item << ", " << DDS_RemoveOffset(dds, key) <<", \n";
         //dds->n -= 1;
         //cout << "There is no bin associated to item " << item << " with key " << key << endl;
@@ -256,6 +263,8 @@ int DDS_Delete(DDS_type *dds, double item)
 
 int DDS_DeleteCollapseNeighbors(DDS_type *dds, double item)
 {
+
+    // Delete function according the DDS_AddRemapped
 
     // this function deletes the bucket with index associated with the value (item) if it exists and its value is equal to 1
     // otherwise it simply decrements by 1 the bucket's counter
@@ -341,6 +350,8 @@ int DDS_expand(DDS_type *dds)
 
 int DDS_SumBins(DDS_type *dds) {
 
+    // This function computes the sum of all counter of the bins
+
     int sum = 0;
 
     for (auto & bin : (*(dds->bins))) {
@@ -352,6 +363,8 @@ int DDS_SumBins(DDS_type *dds) {
 
 int DDS_PrintCSV(DDS_type* dds, string name) {
 
+    // This function prints the bins map in a CSV file
+
     ofstream file;
     file.open(name);
     if (file.fail()) {
@@ -362,6 +375,7 @@ int DDS_PrintCSV(DDS_type* dds, string name) {
     file << fixed;
     file << setprecision(8);
     file << "key, count, max, min, length, \n";
+
     for (auto & bin : (*(dds->bins))) {
 
         double max = DDS_GetBound(dds, bin.first);
@@ -377,6 +391,8 @@ int DDS_PrintCSV(DDS_type* dds, string name) {
 }
 
 int DDS_CheckAll(DDS_type *dds, double item) {
+
+    // This function checks if all the elements in the stream have a corresponding bucket
 
     int key = DDS_GetKey(dds, item);
 
@@ -577,6 +593,9 @@ int DDS_CollapseNeighbors(DDS_type *dds){
 }
 
 int DDS_RemoveOffset(DDS_type* dds, int i) {
+
+    // This function removes the offset to the key (i)
+
     if (i > 0) {
         i -= dds->offset;
     } else {
@@ -586,6 +605,9 @@ int DDS_RemoveOffset(DDS_type* dds, int i) {
 }
 
 int DDS_AddOffset(DDS_type* dds, int i){
+
+    // This function adds the offset to the key (i)
+
     if (i > 0) {
         i += dds->offset;
     } else {
@@ -595,6 +617,8 @@ int DDS_AddOffset(DDS_type* dds, int i){
 }
 
 int DDS_NewKey(DDS_type* dds,  double i, int of){
+
+
     if (i > 0) {
         i -= dds->offset;
         i = ceil((i+of)/2);

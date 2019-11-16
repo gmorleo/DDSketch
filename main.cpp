@@ -1,3 +1,20 @@
+/********************************************************************
+ DDSketch
+
+ An algorithm for tracking quantiles in data streams
+
+ Charles Masson, Jee E. Rim, and Homin K. Lee. 2019. DDSketch: a fast and fully-mergeable quantile sketch with relative-error guarantees. Proc. VLDB Endow. 12, 12 (August 2019), 2195-2205. DOI: https://doi.org/10.14778/3352063.3352135
+
+ This implementation by
+ by Giuseppe Morleo
+ University of Salento, Italy
+
+ *********************************************************************/
+/*!
+ * \mainpage Project $(project_name) DDSketch
+ */
+/// \file
+
 #include <iostream>
 #include <math.h>
 #include <algorithm>
@@ -6,10 +23,7 @@
 #include <iomanip>
 #include "ddsketch.h"
 
-/*!
- * \mainpage Project $(project_name) Lorem ipsum dolor
- */
-/// \file
+
 
 using namespace std;
 
@@ -17,6 +31,12 @@ const int DEFAULT_OFFSET = 1073741824; //2^31/2
 const int DEFAULT_BIN_LIMIT = 500;
 const double DEFAULT_ALPHA = 0.008;
 
+/**
+ * @brief               This function generates a csv file of (n_element) based on the normal distribution
+ * @param name          Output file
+ * @param n_element     Number of element in the dataset
+ * @return              0: success; \n -1: file opening failed;
+ */
 int printDataset(const string& name, int n_element) {
 
     // open file for output
@@ -45,6 +65,13 @@ int printDataset(const string& name, int n_element) {
     return 0;
 }
 
+/**
+ * @brief               This fucntion inserts (n_element) to the sketch according the normal distribution
+ * @param dds           Parameters of the sketch
+ * @param stream        Vector that contains all the real values inserted
+ * @param n_element     Number of element
+ * @return              0: success; \n -1: error;
+ */
 int insertNormalDistribution(DDS_type *dds, double* stream, int n_element) {
 
     // Test with normal distribution
@@ -69,6 +96,13 @@ int insertNormalDistribution(DDS_type *dds, double* stream, int n_element) {
     return 0;
 }
 
+/**
+ * @brief               This function computes the quantile
+ * @param dds           Parameters of the sketch
+ * @param stream        Vector that contains all the real values inserted
+ * @param n_element     Number of element
+ * @return              0: success; \n -2: error;
+ */
 int printQuantile(DDS_type *dds, double* stream, int n_element) {
 
     // Determine the quantile
@@ -96,15 +130,26 @@ int printQuantile(DDS_type *dds, double* stream, int n_element) {
     return  0;
 }
 
+/**
+ * @brief               This function checks if all elements in the stream have a corresponding bucket in the sketch
+ * @param dds           Parameters of the sketch
+ * @param stream        Vector that contains all the real values inserted
+ * @param n_element     Number of element
+ * @return              0: success
+ */
 int deleteElements(DDS_type* dds, double* stream, int n_element) {
 
     // now check that delete works
     cout << "Sketch size (number of bins) before delete is equal to " << DDS_Size(dds) << endl;
     cout << "Number of items in the sketch is equal to " << dds->n << endl;
+
     for (int i = 0; i < n_element; i++) {
-        DDS_Delete(dds, stream[i]);
         //DDS_DeleteCollapseNeighbors(dds, stream[i]);
         //DDS_CheckAll(dds, item);
+        int return_value = DDS_Delete(dds, stream[i]);
+        if ( return_value<0 ) {
+            cout << "Key associated to the value " << stream[i] << " not found!" << endl;
+        }
     }
 
     cout << "Sketch size (number of bins) after delete is equal to " << DDS_Size(dds) << endl;
