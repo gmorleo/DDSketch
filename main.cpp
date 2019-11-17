@@ -172,7 +172,7 @@ int main() {
     int n_element = pow(10,8);
 
     // init array for all the elements
-    double* stream = NULL;
+    double* stream = nullptr;
     stream = new (nothrow) double[n_element];
     if(!stream){
         cout << "Not enough memory" << endl;
@@ -190,7 +190,7 @@ int main() {
     // deallocate the sketch data structure
     DDS_Destroy(dds);
 
-    delete[] stream;
+    delete[] stream, stream = nullptr;
 
     return 0;
 }
