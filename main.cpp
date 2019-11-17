@@ -35,7 +35,7 @@ const double DEFAULT_ALPHA = 0.008;
  * @brief               This function generates a csv file of (n_element) based on the normal distribution
  * @param name          Output file
  * @param n_element     Number of element in the dataset
- * @return              0: success; \n -1: file opening failed;
+ * @return              0: success; \n-1: file opening failed;
  */
 int printDataset(const string& name, int n_element) {
 
@@ -70,7 +70,7 @@ int printDataset(const string& name, int n_element) {
  * @param dds           Parameters of the sketch
  * @param stream        Vector that contains all the real values inserted
  * @param n_element     Number of element
- * @return              0: success; \n -1: error;
+ * @return              0: success; \n-1: error;
  */
 int insertNormalDistribution(DDS_type *dds, double* stream, int n_element) {
 
@@ -101,7 +101,7 @@ int insertNormalDistribution(DDS_type *dds, double* stream, int n_element) {
  * @param dds           Parameters of the sketch
  * @param stream        Vector that contains all the real values inserted
  * @param n_element     Number of element
- * @return              0: success; \n -2: error;
+ * @return              0: success; \n-2: error;
  */
 int printQuantile(DDS_type *dds, double* stream, int n_element) {
 
@@ -159,7 +159,10 @@ int deleteElements(DDS_type* dds, double* stream, int n_element) {
 }
 
 
-
+/**
+ *
+ * @return
+ */
 int main() {
 
     // init the sketch
@@ -172,7 +175,8 @@ int main() {
     double* stream = NULL;
     stream = new (nothrow) double[n_element];
     if(!stream){
-        cout << "Not enough memory" << endl;;
+        cout << "Not enough memory" << endl;
+        DDS_Destroy(dds);
         return -2;
     }
 
@@ -185,6 +189,8 @@ int main() {
 
     // deallocate the sketch data structure
     DDS_Destroy(dds);
+
+    delete[] stream;
 
     return 0;
 }

@@ -24,7 +24,7 @@ DDS_type *DDS_Init(int offset, int bin_limit, double alpha)
     // Initialize the sketch based on user-supplied parameters
     DDS_type *dds = NULL;
 
-    dds = new(DDS_type); // do not use the C malloc() function: it does not call C++ constructors
+    dds = new (nothrow) (DDS_type); // do not use the C malloc() function: it does not call C++ constructors
     if(!dds){
         fprintf(stdout,"Memory allocation of sketch data structure failed\n");
         return NULL;

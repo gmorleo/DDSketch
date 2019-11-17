@@ -48,24 +48,24 @@ typedef struct DDS_type{
  * @param offset        Used to allow the skecth storing both positive, 0 and negative values
  * @param bin_limit     The maximum number of bins
  * @param alpha         The alpha-accuraxy level of q-quantile
- * @return              Parameters of the sketch
+ * @return              (DDS_Type* ) Parameters of the sketch
  */
 extern DDS_type *DDS_Init(int offset, int bin_limit, double alpha);
 
 /**
- * /brief               DDS destructor
- * @param dds           (DDS_Type* ) Parameters of the sketch
+ * @brief               DDS destructor
+ * @param dds           Parameters of the sketch
  */
 extern void DDS_Destroy(DDS_type *dds);
 /**
- * \brief               Return the number of bins currently in the sketch
+ * @brief               Return the number of bins currently in the sketch
  * @param dds           Parameters of the sketch
  * @return              (int) The bins size, (number of bins)
  */
 extern long DDS_Size(DDS_type *dds);
 
 /**
- * \brief               Given a value x, getKey returns the bucket index
+ * @brief               Given a value x, getKey returns the bucket index
  * @param dds           Parameters of the sketch
  * @param item          The the input value
  * @return              (int) The index of the bucket containing the value x
@@ -73,7 +73,7 @@ extern long DDS_Size(DDS_type *dds);
 extern int DDS_GetKey(DDS_type *dds, double item);
 
 /**
- * \brief               Given a value x, getKey returns the bucket ind
+ * @brief               Given a value x, getKey returns the bucket ind
  * @param dds           Parameters of the sketch
  * @param item          The the input value
  * @param ln_gamma      this is not a required parameter; it is defined as log(gamma)
@@ -82,7 +82,7 @@ extern int DDS_GetKey(DDS_type *dds, double item);
 extern int DDS_GetKey(DDS_type *dds, double item, float ln_gamma);
 
 /**
- * \brief               Given a bucket index (i), this function returns the estimation of the rank x_q
+ * @brief               Given a bucket index (i), this function returns the estimation of the rank x_q
  * @param dds           Parameters of the sketch
  * @param i             The key of the bucket
  * @return              (double) The estimate of the rank x_q
@@ -90,10 +90,10 @@ extern int DDS_GetKey(DDS_type *dds, double item, float ln_gamma);
 extern double DDS_GetRank(DDS_type *dds, int i);
 
 /**
- * \brief               This function creates a new bucket with index associated with the value (item), or if that bucket already exists, it simply add 1 to the bucket's counter
+ * @brief               This function creates a new bucket with index associated with the value (item), or if that bucket already exists, it simply add 1 to the bucket's counter
  * @param dds           Parameters of the sketch
  * @param item          The the input value
- * @return              0 success, -1 error
+ * @return              0: success; \n-1: error;
  */
 extern int DDS_Add(DDS_type *dds, double item);
 
@@ -118,14 +118,14 @@ double DDS_GetBound(DDS_type *dds, int i, float gamma);
  * \brief               This function deletes the bucket with index associated with the value (item) if it exists and its value is equal to 1 otherwise it simply decrements by 1 the bucket's counter
  * @param dds           Parameters of the sketch
  * @param item          The the input value
- * @return              0 success
+ * @return              0: success
  */
 extern int DDS_Delete(DDS_type *dds, double item);
 
 /**
  * @brief               In order to reduce the bucket's number, we need to increase the range of the bucket's index.
  * @param dds           Parameters of the sketch
- * @return              0 success, -1 error
+ * @return              0: success; \n-1 error;
  */
 extern int DDS_expand(DDS_type *dds);
 
@@ -147,7 +147,7 @@ extern void DDS_merge(DDS_type *dds1, DDS_type *dds2);
 /**
  * @brief               This function computes the sum of all counter of the bins
  * @param dds           Parameters of the sketch
- * @return              (int)
+ * @return              (int) the sum of all counter of the bins
  */
 extern int DDS_SumBins(DDS_type *dds);
 
@@ -155,7 +155,7 @@ extern int DDS_SumBins(DDS_type *dds);
  * @brief               This function prints the bins map in a CSV file
  * @param name          File name
  * @param bins          Bins map
- * @return              0 success
+ * @return              0: success
  */
 extern int DDS_PrintCSV(DDS_type* dds, string name);
 
@@ -163,14 +163,14 @@ extern int DDS_PrintCSV(DDS_type* dds, string name);
  * @brief               This function checks if all the elements in the stream have a corresponding bucket
  * @param dds           Parameters of the sketch
  * @param item          Input value
- * @return              0: success; \n -1: file opening failed;
+ * @return              0: success; \n-1: file opening failed;
  */
 extern int DDS_CheckAll(DDS_type *dds, double item);
 
 /**
  * @brief               This function expands all the bins in the map, increasing alpha by 0.01. The values in the old range are redistributed in the new range with a proportional way (supposing all values uniforming distributed on the interval)
  * @param dds           Parameters of the sketch
- * @return              0: success; \n -1: Key not found;
+ * @return              0: success; \n-1: Key not found;
  */
 extern int DDS_expandProportional(DDS_type *dds);
 
