@@ -86,7 +86,31 @@ int insertNormalDistribution(DDS_type *dds, double* stream, int n_element) {
 
         item = distribution(generator);
         stream[i] = item;
-        int return_value = DDS_Add(dds, item);
+        int return_value = DDS_AddCollapse(dds, item);
+        //int return_value = DDS_AddRemapped(dds, item);
+        if(return_value < 0){
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+int insertNormalDistributionCollapseLastBucket(DDS_type *dds, double* stream, int n_element) {
+
+    // Test with normal distribution
+    default_random_engine generator;
+    normal_distribution<double> distribution(2,3);
+    double item;
+
+    // generate pseudorandom number (item) according to the normal distribution
+    // insert item into the stream vector and
+    // add it to our DDSketch
+    for (int i = 0; i < n_element; i++) {
+
+        item = distribution(generator);
+        stream[i] = item;
+        int return_value = DDS_AddCollapseLastBucket(dds, item);
         //int return_value = DDS_AddRemapped(dds, item);
         if(return_value < 0){
             return -1;
@@ -146,7 +170,32 @@ int deleteElements(DDS_type* dds, double* stream, int n_element) {
     for (int i = 0; i < n_element; i++) {
         //DDS_DeleteCollapseNeighbors(dds, stream[i]);
         //DDS_CheckAll(dds, item);
-        int return_value = DDS_Delete(dds, stream[i]);
+        int return_value = DDS_DeleteCollapseLastBucket(dds, stream[i]);
+        if ( return_value<0 ) {
+            cout << "Key associated to the value " << stream[i] << " not found!" << endl;
+        }
+    }
+
+    cout << "Sketch size (number of bins) after delete is equal to " << DDS_Size(dds) << endl;
+    cout << "Number of items in the sketch is equal to " << dds->n << endl;
+
+    return 0;
+}
+
+int deleteElementsCollapseLastBucket(DDS_type* dds, double* stream, int n_element) {
+
+    cout << endl;
+
+    cout << dds->max << endl;
+
+    // now check that delete works
+    cout << "Sketch size (number of bins) before delete is equal to " << DDS_Size(dds) << endl;
+    cout << "Number of items in the sketch is equal to " << dds->n << endl;
+
+    for (int i = 0; i < n_element; i++) {
+        //DDS_DeleteCollapseNeighbors(dds, stream[i]);
+        //DDS_CheckAll(dds, item);
+        int return_value = DDS_DeleteCollapseLastBucket(dds, stream[i]);
         if ( return_value<0 ) {
             cout << "Key associated to the value " << stream[i] << " not found!" << endl;
         }
@@ -169,7 +218,7 @@ int main() {
     DDS_type *dds = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
 
     // number of element
-    int n_element = pow(10,8);
+    int n_element = pow(10,7);
 
     // init array for all the elements
     double* stream = nullptr;
@@ -180,9 +229,11 @@ int main() {
         return -2;
     }
 
+    //insertNormalDistributionCollapseLastBucket(dds, stream, n_element);
     insertNormalDistribution(dds, stream, n_element);
     printQuantile(dds, stream, n_element);
     deleteElements(dds, stream, n_element);
+    //deleteElementsCollapseLastBucket(dds, stream, n_element);
 
     // print dataset on a file
     //printDataset("normal.csv", n_element);

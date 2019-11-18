@@ -37,10 +37,9 @@ typedef struct DDS_type{
     /// this parameter keeps track of the number of items added to the sketch
     int n;
 
-    /// remap
-    map<int, int> *remap;
-    bool remapped;
-
+    /// collapse
+    int min;
+    int max;
 } DDS_type;
 
 /**
@@ -48,190 +47,157 @@ typedef struct DDS_type{
  * @param offset        Used to allow the skecth storing both positive, 0 and negative values
  * @param bin_limit     The maximum number of bins
  * @param alpha         The alpha-accuraxy level of q-quantile
- * @return              (DDS_Type* ) Parameters of the sketch
+ * @return              an allocated DDSketch data structure
  */
 extern DDS_type *DDS_Init(int offset, int bin_limit, double alpha);
 
 /**
- * @brief               DDS destructor
- * @param dds           Parameters of the sketch
+ * /brief               DDS destructor: deallocates a DDSketch data structure
+ * @param dds           an allocated DDSketch data structure
  */
 extern void DDS_Destroy(DDS_type *dds);
 /**
- * @brief               Return the number of bins currently in the sketch
- * @param dds           Parameters of the sketch
- * @return              (int) The bins size, (number of bins)
+ * \brief               Return the number of bins currently in the sketch
+ * @param dds           The sketch
+ * @return              The bins size, (number of bins)
  */
 extern long DDS_Size(DDS_type *dds);
 
 /**
- * @brief               Given a value x, getKey returns the bucket index
- * @param dds           Parameters of the sketch
- * @param item          The the input value
- * @return              (int) The index of the bucket containing the value x
+ * \brief               Given a value (item), getKey returns the bucket index
+ * @param dds           The sketch
+ * @param item          The input value
+ * @return              The index of the bucket containing the item
  */
 extern int DDS_GetKey(DDS_type *dds, double item);
 
 /**
- * @brief               Given a value x, getKey returns the bucket ind
- * @param dds           Parameters of the sketch
- * @param item          The the input value
- * @param ln_gamma      this is not a required parameter; it is defined as log(gamma)
- * @return              (int) The index of the bucket containing the value x
+ * \brief               Given a value (item), getKey returns the bucket index
+ * @param dds           The sketch
+ * @param item          The input value
+ * @param ln_gamma      the log(gamma) to be used
+ * @return              The index of the bucket containing the item
  */
 extern int DDS_GetKey(DDS_type *dds, double item, float ln_gamma);
 
 /**
- * @brief               Given a bucket index (i), this function returns the estimation of the rank x_q
- * @param dds           Parameters of the sketch
+ * \brief               Given a bucket index (i), this function returns the estimation of the rank x_q
+ * @param dds           The sketch
  * @param i             The key of the bucket
- * @return              (double) The estimate of the rank x_q
+ * @return              The estimate of the rank x_q
  */
 extern double DDS_GetRank(DDS_type *dds, int i);
 
 /**
- * @brief               This function creates a new bucket with index associated with the value (item), or if that bucket already exists, it simply add 1 to the bucket's counter
- * @param dds           Parameters of the sketch
+ * \brief               This function creates a new bucket with index associated with the value (item), or if that bucket already exists, it simply add 1 to the bucket's counter
+ * @param dds           The sketch
  * @param item          The the input value
- * @return              0: success; \n-1: error;
+ * @return              0 success, -1 error
  */
-extern int DDS_Add(DDS_type *dds, double item);
+extern int DDS_AddCollapse(DDS_type *dds, double item);
+
+extern int DDS_AddCollapseLastBucket(DDS_type *dds, double item);
 
 /**
  * @brief               This function returns the bound associated with the key (i), (gamma^i)
- * @param dds           Parameters of the sketch
+ * @param dds           The sketch
  * @param i             The key of the bucket
- * @return              (double) gamma^i
+ * @return
  */
 double DDS_GetBound(DDS_type *dds, int i);
 
 /**
  * @brief               This function returns the bound associated with the key (i), (gamma^i)
- * @param dds           Parameters of the sketch
+ * @param dds           The sketch
  * @param i             The key of the bucket
  * @param gamma         Gamma
- * @return              (double) gamma^i
+ * @return
  */
 double DDS_GetBound(DDS_type *dds, int i, float gamma);
 
 /**
  * \brief               This function deletes the bucket with index associated with the value (item) if it exists and its value is equal to 1 otherwise it simply decrements by 1 the bucket's counter
- * @param dds           Parameters of the sketch
- * @param item          The the input value
- * @return              0: success
+ * @param dds           The sketch
+ * @param item          The input value
+ * @return              0 success
  */
 extern int DDS_Delete(DDS_type *dds, double item);
 
-/**
- * @brief               In order to reduce the bucket's number, we need to increase the range of the bucket's index.
- * @param dds           Parameters of the sketch
- * @return              0: success; \n-1 error;
- */
-extern int DDS_expand(DDS_type *dds);
+extern int DDS_DeleteCollapseLastBucket(DDS_type *dds, double item);
 
 /**
  * \brief               The function computes the estimate of the desired q-quantile (q)
- * @param dds           Parameters of the sketch
+ * @param dds           The sketch
  * @param q             The desired q-quantile
- * @return              (double) The estimate of the desired q-quantile
+ * @return              The estimate of the desired q-quantile
  */
 extern double DDS_GetQuantile(DDS_type *dds, float q);
 
 /**
- * \brief               Merge function merges the bins in dds1 with the bins of dds2 dds1 is the result of the merge operation
- * @param dds1          Parameters of the sketch
- * @param dds2          Parameters of the sketch
+ * \brief               Merge function: merges the bins in dds1 with the bins of dds2; dds1 is the result of the merge operation
+ * @param dds1          The sketch
+ * @param dds2          The sketch
  */
 extern void DDS_merge(DDS_type *dds1, DDS_type *dds2);
 
 /**
- * @brief               This function computes the sum of all counter of the bins
- * @param dds           Parameters of the sketch
- * @return              (int) the sum of all counter of the bins
+ * @brief               This function computes the sum of the counters stored in the bins
+ * @param dds           The sketch
+ * @return              long
  */
-extern int DDS_SumBins(DDS_type *dds);
+extern long DDS_SumBins(DDS_type *dds);
 
 /**
  * @brief               This function prints the bins map in a CSV file
+ * @param dds           The sketch
  * @param name          File name
- * @param bins          Bins map
- * @return              0: success
+ * @return              0 success
  */
 extern int DDS_PrintCSV(DDS_type* dds, string name);
 
 /**
- * @brief               This function checks if all the elements in the stream have a corresponding bucket
- * @param dds           Parameters of the sketch
+ * @brief               This function checks if a given item has a corresponding bucket
+ * @param dds           The sketch
  * @param item          Input value
- * @return              0: success; \n-1: file opening failed;
+ * @return              0 success, -1 failure
  */
-extern int DDS_CheckAll(DDS_type *dds, double item);
-
-/**
- * @brief               This function expands all the bins in the map, increasing alpha by 0.01. The values in the old range are redistributed in the new range with a proportional way (supposing all values uniforming distributed on the interval)
- * @param dds           Parameters of the sketch
- * @return              0: success; \n-1: Key not found;
- */
-extern int DDS_expandProportional(DDS_type *dds);
+extern int DDS_CheckItem(DDS_type *dds, double item);
 
 /**
  * @brief               This function collapses the last two buckets
- * @param dds           Parameters of the sketch
- * @return              0: success
+ * @param dds           The sketch
+ * @return
+ */
+extern int DDS_CollapseLastBucket(DDS_type *dds);
+
+/**
+ * @brief               The function collapses the old buckets in the new buckets based on the new range (range ^ 2)
+ * @param dds           The sketch
+ * @return              0 success, -1 failure
  */
 extern int DDS_Collapse(DDS_type *dds);
 
 /**
- * @brief               This function collapses the adjacent buckets and remap the key in a new hash-map
- * @param dds           Parameters of the sketch
- * @return              0: success
- */
-extern int DDS_CollapseNeighbors(DDS_type *dds);
-
-/**
- * @brief               This function add an element to the sketch (whit the remapped method)
- * @param dds           Parameters of the sketch
- * @param item          Input value
- * @return              0: success
- */
-extern int DDS_AddRemapped(DDS_type *dds, double item);
-
-/**
- * @brief               In order to reduce the bucket's number, we need to increase the range of the bucket's index. (with remapped method)
- * @param dds           Parameters of the sketch
- * @param item          Input value
- * @return              0: success
- */
-extern int DDS_DeleteCollapseNeighborn(DDS_type *dds, double item);
-
-/**
- * @brief               The function collapses the old buckets in the new buckets based on the new range (range ^ 2)
- * @param dds           Parameters of the sketch
- * @return              0: success
- */
-extern int DDS_CollapsePlus(DDS_type *dds);
-
-/**
- * @brief               This function removes the offset to the key (i)
- * @param dds           Parameters of the sketch
- * @param i             The key
- * @return              (int) key without the offset
+ * @brief               This function subtracts from the bucket index the offset used in the implementation to handle both positive and negative values
+ * @param dds           The sketch
+ * @param i             the bucket index
+ * @return              the bucket index minus the offset
  */
 extern int DDS_RemoveOffset(DDS_type* dds, int i);
 
 /**
- * @brief               This function adds the offset to the key (i)
- * @param dds           Parameters of the sketch
- * @param i             The key
- * @return              (int) key with the offset
- */
+* @brief               This function adds to the bucket index the offset used in the implementation to handle both positive and negative values
+* @param dds           The sketch
+* @param i             the bucket index
+* @return              the bucket index plus the offset
+*/
 extern int DDS_AddOffset(DDS_type* dds, int i);
 
 /**
- * @brief               This function
- * @param dds           Parameters of the sketch
- * @param i             The key
- * @param of            The value (-1,1) to add to the key
- * @return              (int) the new key
+ *
+ * @param dds           The sketch
+ * @param i             the bucket index
+ * @param of
+ * @return              the bucket index
  */
 extern int DDS_NewKey(DDS_type* dds,  double i, int of);
