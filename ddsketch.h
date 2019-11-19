@@ -37,9 +37,13 @@ typedef struct DDS_type{
     /// this parameter keeps track of the number of items added to the sketch
     int n;
 
-    /// collapse
+    /// Min key on the first/last bucket
     int min;
+    /// Max key on the first/last bucket
     int max;
+
+    /// Min value in order to exclude the values near to 0
+    double min_value;
 } DDS_type;
 
 /**
@@ -56,6 +60,7 @@ extern DDS_type *DDS_Init(int offset, int bin_limit, double alpha);
  * @param dds           an allocated DDSketch data structure
  */
 extern void DDS_Destroy(DDS_type *dds);
+
 /**
  * \brief               Return the number of bins currently in the sketch
  * @param dds           The sketch
@@ -72,31 +77,12 @@ extern long DDS_Size(DDS_type *dds);
 extern int DDS_GetKey(DDS_type *dds, double item);
 
 /**
- * \brief               Given a value (item), getKey returns the bucket index
- * @param dds           The sketch
- * @param item          The input value
- * @param ln_gamma      the log(gamma) to be used
- * @return              The index of the bucket containing the item
- */
-extern int DDS_GetKey(DDS_type *dds, double item, float ln_gamma);
-
-/**
  * \brief               Given a bucket index (i), this function returns the estimation of the rank x_q
  * @param dds           The sketch
  * @param i             The key of the bucket
  * @return              The estimate of the rank x_q
  */
 extern double DDS_GetRank(DDS_type *dds, int i);
-
-/**
- * \brief               This function creates a new bucket with index associated with the value (item), or if that bucket already exists, it simply add 1 to the bucket's counter
- * @param dds           The sketch
- * @param item          The the input value
- * @return              0 success, -1 error
- */
-extern int DDS_AddCollapse(DDS_type *dds, double item);
-
-extern int DDS_AddCollapseLastBucket(DDS_type *dds, double item);
 
 /**
  * @brief               This function returns the bound associated with the key (i), (gamma^i)
@@ -107,23 +93,13 @@ extern int DDS_AddCollapseLastBucket(DDS_type *dds, double item);
 double DDS_GetBound(DDS_type *dds, int i);
 
 /**
- * @brief               This function returns the bound associated with the key (i), (gamma^i)
+ * @brief
  * @param dds           The sketch
- * @param i             The key of the bucket
- * @param gamma         Gamma
- * @return
+ * @param i             the bucket index
+ * @param of            1 or -1 the value to add to the key
+ * @return              the new bucket index
  */
-double DDS_GetBound(DDS_type *dds, int i, float gamma);
-
-/**
- * \brief               This function deletes the bucket with index associated with the value (item) if it exists and its value is equal to 1 otherwise it simply decrements by 1 the bucket's counter
- * @param dds           The sketch
- * @param item          The input value
- * @return              0 success
- */
-extern int DDS_Delete(DDS_type *dds, double item);
-
-extern int DDS_DeleteCollapseLastBucket(DDS_type *dds, double item);
+extern int DDS_CollapseKey(DDS_type* dds, double i, int of);
 
 /**
  * \brief               The function computes the estimate of the desired q-quantile (q)
@@ -132,13 +108,6 @@ extern int DDS_DeleteCollapseLastBucket(DDS_type *dds, double item);
  * @return              The estimate of the desired q-quantile
  */
 extern double DDS_GetQuantile(DDS_type *dds, float q);
-
-/**
- * \brief               Merge function: merges the bins in dds1 with the bins of dds2; dds1 is the result of the merge operation
- * @param dds1          The sketch
- * @param dds2          The sketch
- */
-extern void DDS_merge(DDS_type *dds1, DDS_type *dds2);
 
 /**
  * @brief               This function computes the sum of the counters stored in the bins
@@ -156,19 +125,23 @@ extern long DDS_SumBins(DDS_type *dds);
 extern int DDS_PrintCSV(DDS_type* dds, string name);
 
 /**
- * @brief               This function checks if a given item has a corresponding bucket
+ * @brief               This function subtracts from the bucket index the offset used in the implementation to handle both positive and negative values
  * @param dds           The sketch
- * @param item          Input value
- * @return              0 success, -1 failure
+ * @param i             the bucket index
+ * @return              the bucket index minus the offset
  */
-extern int DDS_CheckItem(DDS_type *dds, double item);
+extern int DDS_RemoveOffset(DDS_type* dds, int i);
+
+
+/*** Functions to use the gamma^2 collapsing ***/
 
 /**
- * @brief               This function collapses the last two buckets
+ * \brief               This function creates a new bucket with index associated with the value (item), or if that bucket already exists, it simply add 1 to the bucket's counter
  * @param dds           The sketch
- * @return
+ * @param item          The the input value
+ * @return              0 success, -1 error
  */
-extern int DDS_CollapseLastBucket(DDS_type *dds);
+extern int DDS_AddCollapse(DDS_type *dds, double item);
 
 /**
  * @brief               The function collapses the old buckets in the new buckets based on the new range (range ^ 2)
@@ -178,26 +151,80 @@ extern int DDS_CollapseLastBucket(DDS_type *dds);
 extern int DDS_Collapse(DDS_type *dds);
 
 /**
- * @brief               This function subtracts from the bucket index the offset used in the implementation to handle both positive and negative values
+ * \brief               This function deletes the bucket with index associated with the value (item) if it exists and its value is equal to 1 otherwise it simply decrements by 1 the bucket's counter
  * @param dds           The sketch
- * @param i             the bucket index
- * @return              the bucket index minus the offset
+ * @param item          The input value
+ * @return              0 success
  */
-extern int DDS_RemoveOffset(DDS_type* dds, int i);
+extern int DDS_DeleteCollapse(DDS_type *dds, double item);
 
 /**
-* @brief               This function adds to the bucket index the offset used in the implementation to handle both positive and negative values
-* @param dds           The sketch
-* @param i             the bucket index
-* @return              the bucket index plus the offset
-*/
-extern int DDS_AddOffset(DDS_type* dds, int i);
+ * \brief               Merge function: merges the bins in dds1 with the bins of dds2; dds1 is the result of the merge operation
+ * @param dds1          The sketch
+ * @param dds2          The sketch
+ */
+extern int DDS_MergeCollapse(DDS_type *dds1, DDS_type *dds2);
+
+/*** Functions to use the collapsing on last bucket ***/
 
 /**
- *
+ * \brief               This function creates a new bucket with index associated with the value (item), or if that bucket already exists, it simply add 1 to the bucket's counter
  * @param dds           The sketch
- * @param i             the bucket index
- * @param of
- * @return              the bucket index
+ * @param item          The the input value
+ * @return              0 success, -1 error
  */
-extern int DDS_NewKey(DDS_type* dds,  double i, int of);
+extern int DDS_AddCollapseLastBucket(DDS_type *dds, double item);
+
+/**
+ * @brief               This function collapses the last two buckets into the last bucket
+ * @param dds           The sketch
+ * @return              0 success, -1 error
+ */
+extern int DDS_CollapseLastBucket(DDS_type *dds);
+
+/**
+ * \brief               This function deletes the bucket with index associated with the value (item) if it exists and its value is equal to 1 otherwise it simply decrements by 1 the bucket's counter
+ * @param dds           The sketch
+ * @param item          The input value
+ * @return              0 success
+ */
+extern int DDS_DeleteCollapseLastBucket(DDS_type *dds, double item);
+
+/**
+ * \brief               Merge function: merges the bins in dds1 with the bins of dds2; dds1 is the result of the merge operation
+ * @param dds1          The sketch
+ * @param dds2          The sketch
+ */
+extern int  DDS_MergeCollapseLastBucket(DDS_type *dds1, DDS_type *dds2);
+
+/*** Functions to use the collapsing on first bucket  ***/
+
+/**
+ * \brief               This function creates a new bucket with index associated with the value (item), or if that bucket already exists, it simply add 1 to the bucket's counter
+ * @param dds           The sketch
+ * @param item          The the input value
+ * @return              0 success, -1 error
+ */
+extern int DDS_AddCollapseFirstBucket(DDS_type *dds, double item);
+
+/**
+ * @brief               This function collapses the last two buckets
+ * @param dds           The sketch
+ * @return              0 success, -1 error
+ */
+extern int DDS_CollapseFirstBucket(DDS_type *dds);
+
+/**
+ * \brief               This function deletes the bucket with index associated with the value (item) if it exists and its value is equal to 1 otherwise it simply decrements by 1 the bucket's counter
+ * @param dds           The sketch
+ * @param item          The input value
+ * @return              0 success
+ */
+extern int DDS_DeleteCollapseFirstBucket(DDS_type *dds, double item);
+
+/**
+ * \brief               Merge function: merges the bins in dds1 with the bins of dds2; dds1 is the result of the merge operation
+ * @param dds1          The sketch
+ * @param dds2          The sketch
+ */
+extern int DDS_MergeCollapseFirstBucket(DDS_type *dds1, DDS_type *dds2);
