@@ -16,7 +16,7 @@ University of Salento, Italy
 #include <iomanip>
 #include "ddsketch.h"
 
-
+high_resolution_clock::time_point t1, t2;
 
 DDS_type *DDS_Init(int offset, int bin_limit, double alpha)
 {
@@ -97,9 +97,11 @@ double DDS_GetRank(DDS_type *dds, int i)
     if (i > 0) {
         i -= dds->offset;
         return (2 * pow(dds->gamma, i))/(dds->gamma + 1);
-    } else {
+    } else if (i < 0){
         i += dds->offset;
         return -(2 * pow(dds->gamma, -i))/(dds->gamma + 1);
+    } else if ( i == 0) {
+        return dds->min_value;
     }
 
 }
@@ -134,7 +136,8 @@ int DDS_CollapseKey(DDS_type* dds, double i, int of){
         i += dds->offset;
     } else if ( i< 0 ){
         i += dds->offset;
-        i = -ceil(-((i+of)/2));
+        i = -i;
+        i = -ceil((i+of)/2);
         i -= dds->offset;
     } else if ( abs(i) < dds->min_value) {
         i = 0;
@@ -356,9 +359,10 @@ double DDS_GetQuantile(DDS_type *dds, float q)
     // We need to sum up the buckets until we find the bucket containing the q-quantile value x_q
     auto it = dds->bins->begin();
     int i = it->first;
-    int count = it->second;
+    double count = it->second;
+    double stop = q*double(dds->n - 1);
 
-    while (count <= q*(dds->n - 1)) {
+    while ( count <= stop) {
 
         ++it;
         i = it->first;
@@ -380,6 +384,8 @@ bool DDS_isMergeable(DDS_type *dds1, DDS_type *dds2) {
 int DDS_MergeCollapse(DDS_type *dds1, DDS_type *dds2) {
 
     cout << "Size before merge sketch1 = " << DDS_Size(dds1) << " sketch2 = " << DDS_Size(dds2) << endl;
+
+    startTheClock();
 
     // Check if the bins have the same alpha
     while (!DDS_isMergeable(dds1,dds2)){
@@ -403,7 +409,9 @@ int DDS_MergeCollapse(DDS_type *dds1, DDS_type *dds2) {
         DDS_Collapse(dds1);
     }
 
-    cout << "Size after merge = " << DDS_Size(dds1) << endl << endl;
+    double time = stopTheClock();
+
+    cout << "Size after merge = " << DDS_Size(dds1) << " merge time = " << time << endl << endl;
 
     return 0;
 }
@@ -411,6 +419,8 @@ int DDS_MergeCollapse(DDS_type *dds1, DDS_type *dds2) {
 int DDS_MergeCollapseLastBucket(DDS_type *dds1, DDS_type *dds2) {
 
     cout << "Size before merge sketch1 = " << DDS_Size(dds1) << " sketch2 = " << DDS_Size(dds2) << endl;
+
+    startTheClock();
 
     // Check if the bins have the same alpha
     if (!DDS_isMergeable(dds1,dds2)){
@@ -431,7 +441,9 @@ int DDS_MergeCollapseLastBucket(DDS_type *dds1, DDS_type *dds2) {
         DDS_CollapseLastBucket(dds1);
     }
 
-    cout << "Size after merge = " << DDS_Size(dds1) << endl;
+    double time = stopTheClock();
+
+    cout << "Size after merge = " << DDS_Size(dds1) << " merge time = " << time << endl << endl;
 
     return 0;
 }
@@ -439,6 +451,8 @@ int DDS_MergeCollapseLastBucket(DDS_type *dds1, DDS_type *dds2) {
 int DDS_MergeCollapseFirstBucket(DDS_type *dds1, DDS_type *dds2) {
 
     cout << "Size before merge sketch1 = " << DDS_Size(dds1) << " sketch2 = " << DDS_Size(dds2) << endl;
+
+    startTheClock();
 
     // Check if the bins have the same alpha
     if (!DDS_isMergeable(dds1,dds2)){
@@ -459,7 +473,9 @@ int DDS_MergeCollapseFirstBucket(DDS_type *dds1, DDS_type *dds2) {
         DDS_CollapseFirstBucket(dds1);
     }
 
-    cout << "Size after merge = " << DDS_Size(dds1) << endl;
+    double time = stopTheClock();
+
+    cout << "Size after merge = " << DDS_Size(dds1) << " merge time = " << time << endl << endl;
 
     return 0;
 }
@@ -508,10 +524,9 @@ int DDS_Collapse(DDS_type *dds) {
 
     cout << "Size before collapse: " << DDS_Size(dds) << " sum: " << DDS_SumBins(dds) << " alpha: " << dds->alpha << " gamma: " << dds->gamma << endl;
 
-    DDS_PrintCSV(dds, "prima.csv");
+    startTheClock();
 
     // determine new gamma and alpha values to be used
-
     dds->gamma = pow(dds->gamma, 2);
     dds->ln_gamma = log(dds->gamma);
     dds->alpha = (2 * dds->alpha) / (1 + pow(dds->alpha, 2));
@@ -529,71 +544,26 @@ int DDS_Collapse(DDS_type *dds) {
     for (auto it = dds->bins->begin(); it != dds->bins->end(); ++it) {
 
         int key = it->first;
-        // handle positive bucket indexes
-        if ( key > 0 ) {
-
-            // if the bucket index is even
-            if ( key%2 == 0 ) {
-
-                // determine the new bucket index corresponding to the collapsing of this bucket and the preceding bucket (whose key is odd)
-                int new_key = DDS_CollapseKey(dds, key, -1);
-                (*new_bins)[new_key] += it->second;
-
-            } else {
-
-                // the bucket index is odd
-                // determine the new bucket index corresponding to the collapsing of this bucket and the next bucket (whose key is even)
-                // check if the next bucket exists
-                int new_key = DDS_CollapseKey(dds, key, +1);
-                auto next_bin = next(it, 1);
-
-                if ( next_bin->first == key+1) {
-                    (*new_bins)[new_key] += it->second + next_bin->second;
-                    // we have to skip the next bucket because we have already considered it in this interaction
-                    ++it;
-                    if ( it == dds->bins->end() ) {
-                        break;
-                    }
-                } else {
-                    (*new_bins)[new_key] += it->second;
-                }
-            }
+        // check if the bucket index is even
+        if (key % 2 == 0) {
+            int new_key = DDS_CollapseKey(dds, key, -1);
+            (*new_bins)[new_key] += it->second;
         } else {
-            // handle negative bucket indexes
-
-            // if the bucket index is even
-            if ( key%2 == 0 ) {
-
-                // determine the new bucket index corresponding to the collapsing of this bucket and the next bucket (whose key is odd)
-                // check if the next bucket exist
-                int new_key = DDS_CollapseKey(dds, key, +1);
-                auto next_bin = next(it, 1);
-
-                if ( next_bin->first == key-1) {
-                    (*new_bins)[new_key] += it->second + next_bin->second;
-                    // we have to skip the next bucket because we have already considered it in this interaction
-                    ++it;
-                    if ( it == dds->bins->end() ) {
-                        break;
-                    }
-                } else {
-                    (*new_bins)[new_key] += it->second;
-                }
-            } else {
-                int new_key = DDS_CollapseKey(dds, key, -1);
-                (*new_bins)[new_key] += it->second;
-            }
+            int new_key = DDS_CollapseKey(dds, key, +1);
+            (*new_bins)[new_key] += it->second;
         }
+
     }
 
     // Replace old bins map with new bins map
     dds->bins->swap(*new_bins);
+
+    double time = stopTheClock();
+
+    cout << "Size after collapse = " << DDS_Size(dds) << " sum: " << DDS_SumBins(dds) << " alpha: " << dds->alpha << " gamma: " << dds->gamma << " collapse time = " << time << endl << endl;
+
     new_bins->clear();
     delete new_bins;
-
-    DDS_PrintCSV(dds, "dopo.csv");
-
-    cout << "Size after collapse = " << DDS_Size(dds) << " sum: " << DDS_SumBins(dds) << " alpha: " << dds->alpha << " gamma: " << dds->gamma << endl << endl;
 
     return 0;
 }
@@ -612,8 +582,16 @@ int DDS_PrintCSV(DDS_type* dds, string name) {
     file << "key, count, max, min, length, \n";
     for (auto & bin : (*(dds->bins))) {
 
-        double max = DDS_GetBound(dds, bin.first);
-        double min = DDS_GetBound(dds, (bin.first - 1));
+        double max, min;
+
+        if ( bin.first > 0) {
+            max = DDS_GetBound(dds, bin.first);
+            min = DDS_GetBound(dds, (bin.first - 1));
+        } else {
+            max = DDS_GetBound(dds, bin.first);
+            min = DDS_GetBound(dds, (bin.first + 1));
+        }
+
 
         file << DDS_RemoveOffset(dds, bin.first) <<", "<<bin.second<<", "<<max<<", "<< min <<", "<<max-min<<", \n";
 
@@ -655,4 +633,14 @@ int DDS_AddOffset(DDS_type* dds, int i){
     }
 
     return i;
+}
+
+void startTheClock(){
+    t1 = high_resolution_clock::now();
+}
+
+double stopTheClock() {
+    t2 = high_resolution_clock::now();
+    duration<double> time_span = duration_cast<duration<double>>(t2 - t1);
+    return time_span.count();
 }

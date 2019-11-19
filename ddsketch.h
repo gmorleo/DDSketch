@@ -18,8 +18,10 @@
 #include <map>
 #include <algorithm>
 #include <random>
+#include <chrono>
 
 using namespace std;
+using namespace std::chrono;
 
 typedef struct DDS_type{
     /// used to allow the skecth storing both positive, 0 and negative values
@@ -228,3 +230,6 @@ extern int DDS_DeleteCollapseFirstBucket(DDS_type *dds, double item);
  * @param dds2          The sketch
  */
 extern int DDS_MergeCollapseFirstBucket(DDS_type *dds1, DDS_type *dds2);
+
+extern void startTheClock();
+extern double stopTheClock();

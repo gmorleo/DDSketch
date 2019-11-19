@@ -171,13 +171,17 @@ int main() {
     gamma_distribution<double> gamma(2,2);
 
     /// number of element
-    int n_element = pow(10,8);
+    int n_element = pow(10,7);
 
     /// Test with random value
     /// Collapse type: 1 Collapse with gamma^2, 2 Collapse with last buckets, 3 Collapse with first buckets
 
-    //testWithRandomValue(n_element, exponential, 1);
-    testMergeWithRandomValue(n_element,n_element,uniform_real,uniform_real2,3);
+    testWithRandomValue(n_element, exponential, 1);
+    testWithRandomValue(n_element, exponential, 3);
+    //testWithRandomValue(n_element, normal, 1);
+    //testWithRandomValue(n_element, normal, 3);
+    //testMergeWithRandomValue(n_element,n_element,uniform_real,uniform_real2,1);
+    //testMergeWithRandomValue(n_element,n_element,uniform_real,uniform_real2,3);
 
     /// Test merge function
     /// Collapse type: 1 Collapse with gamma^2, 2 Collapse with last buckets, 3 Collapse with first bucket
@@ -249,7 +253,7 @@ int insertRandom(DDS_type *dds, double* stream, int stream_start, int n_element,
 
     double item;
 
-    // generate pseudorandom number (item) according to the select distribution
+    // generate pseudorandom number (item) according to the selected distribution
     // insert item into the stream vector and
     // add it to our DDSketch
     for (int i = 0; i < n_element; i++) {
@@ -409,8 +413,10 @@ int testMergeWithRandomValue(int n_element1, int n_element2, Distribution distri
 
     cout << "first sketch: " << endl;
     insertRandom(dds1, stream, 0, n_element1, distribution1, collapseType);
+
     cout << "second sketch: " << endl;
     insertRandom(dds2, stream, n_element1, n_element2, distribution2, collapseType);
+
     merge(dds1, dds2, collapseType);
     testQuantile(dds1, stream, n_element1 + n_element2);
     deleteElements(dds1, stream, n_element1 + n_element2, collapseType);
@@ -558,7 +564,7 @@ int testQuantile(DDS_type *dds, double* stream, int n_element) {
 
     for ( int i = 0; i < n_q; i++ ) {
 
-        int idx = floor(1+q[i]*(n_element-1));
+        int idx = floor(1+q[i]*double(n_element-1));
         // determine the correct answer
         // i.e., the number stored at the index (idx-1) in the sorted permutation of the vector
         // note that we are not sorting the vector, we are using the quickselect() algorithm
