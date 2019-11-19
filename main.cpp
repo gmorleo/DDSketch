@@ -27,17 +27,6 @@
 
 using namespace std;
 
-const double NORMAL_MEAN = 2;
-const double NORMAL_STDDEV = 3;
-const double EXPONENTIAL_LAMBDA = 17;
-const double REAL_UNIFORM_A = -50;
-const double REAL_UNIFORM_B = 50;
-const double GAMMA_ALPHA = 1;
-const double GAMMA_BETA = 3;
-const double CHI_SQUARED_N = 10;
-const double WEIBULL_A = -4;
-const double WEIBULL_B = 4;
-
 const int DEFAULT_OFFSET = 1073741824; //2^31/2
 const int DEFAULT_BIN_LIMIT = 500;
 const double DEFAULT_ALPHA = 0.008;
@@ -70,15 +59,8 @@ string getDistributionName(int distribution);
  * @param n_element         Number of element in the dataset
  * @return                  0 success; \n-1 file opening failed;
  */
-int printDataset(const string& name, int n_element, int distribution);
-
-/**
- * @brief                   This function inserts (n_element) to the sketch according to the selected distribution and collapse type
- * @param dds               Parameters of the sketch
- * @param stream            Vector that contains all the real values inserted
- * @param n_element         Number of element
- * @return                  0 success; \n-1 error;
- */
+template <class Distribution>
+int printDataset(const string& name, int n_element, Distribution distribution);
 
 /**
  * @brief                   This function inserts (n_element) to the sketch according to the selected distribution and collapse type
@@ -86,11 +68,12 @@ int printDataset(const string& name, int n_element, int distribution);
  * @param stream            Vector that contains all the real values inserted
  * @param stream_start      Initial index from which insert the elements in the vector
  * @param n_element         Number of element
- * @param distribution      Distribution type: 1 normal, 2 exponential, 3 real uniform, 4 gamma, 5 chi squared, 6 weibull
+ * @param distribution      Distribution
  * @param collapseType      Collapse type: 1 gamma^2, 2 last bucket, 3 first bucket
  * @return                  0 success -1 error
  */
-int insertRandom(DDS_type *dds, double* stream, int stream_start, int n_element, int distribution, int collapseType);
+template <class Distribution>
+int insertRandom(DDS_type *dds, double* stream, int stream_start, int n_element, Distribution distribution, int collapseType);
 
 /**
  * @brief                   This function inserts elements from index (start) to index (stop) from dataset to the sketch according to the selected collapse type
@@ -115,23 +98,25 @@ int merge(DDS_type* dds1, DDS_type* dds2, int collapseType);
 /**
  * @brief                   This function tests the sketch, entering (n_element) based on the selected distribution and using the selected type of collapsing
  * @param n_element         Number of element
- * @param distribution      Distribution type: 1 normal, 2 exponential, 3 real uniform, 4 gamma, 5 chi squared, 6 weibull
+ * @param distribution      Distribution
  * @param collapseType      Collapse type: 1 gamma^2, 2 last bucket, 3 first bucket
  * @return                  0 success -1 error
  */
-int testWithRandomValue(int n_element, int distribution, int collapseType);
+template <class Distribution>
+int testWithRandomValue(int n_element, Distribution distribution, int collapseType);
 
 /**
  * @brief                   This function tests the merge of two sketches, entering (n_element1) in the first sketch and
  *                          (n_element2) in the second sketch based on the selected distributions and using the selected type of collapsing
  * @param n_element1        Number of element first distribution
  * @param n_element2        Number of element second distribution
- * @param distribution1     First distribution type: 1 normal, 2 exponential, 3 real uniform, 4 gamma, 5 chi squared, 6 weibull
- * @param distribution2     Second distribution type: 1 normal, 2 exponential, 3 real uniform, 4 gamma, 5 chi squared, 6 weibull
+ * @param distribution1     First distribution
+ * @param distribution2     Second distribution
  * @param collapseType      Collapse type: 1 gamma^2, 2 last bucket, 3 first bucket
  * @return                  0 success -1 error
  */
-int testMergeWithRandomValue(int n_element1, int n_element2, int distribution1, int distribution2, int collapseType);
+template <class Distribution>
+int testMergeWithRandomValue(int n_element1, int n_element2, Distribution distribution1, Distribution distribution2, int collapseType);
 
 /**
  * @brief                   This function tests the merge of two sketches, entering (dataset size/2) in the first sketch
@@ -177,15 +162,22 @@ int testQuantile(DDS_type *dds, double* stream, int n_element);
  */
 int main() {
 
+    /// Init the distribution
+    default_random_engine generator;
+    normal_distribution<double> normal(2,3);
+    exponential_distribution<double> exponential(17);
+    uniform_real_distribution<double> uniform_real(-5,0);
+    uniform_real_distribution<double> uniform_real2(0,5);
+    gamma_distribution<double> gamma(2,2);
+
     /// number of element
     int n_element = pow(10,8);
 
     /// Test with random value
-    /// Distribution: 1 Normal, 2 Exponential, 3 Real Uniform,4 Gamma, 5 Chi Squared, 6 Weibull
     /// Collapse type: 1 Collapse with gamma^2, 2 Collapse with last buckets, 3 Collapse with first buckets
 
-    testWithRandomValue(n_element, 1, 1);
-    //testMergeWithRandomValue(n_element,n_element,1,1,1);
+    //testWithRandomValue(n_element, exponential, 1);
+    testMergeWithRandomValue(n_element,n_element,uniform_real,uniform_real2,3);
 
     /// Test merge function
     /// Collapse type: 1 Collapse with gamma^2, 2 Collapse with last buckets, 3 Collapse with first bucket
@@ -194,9 +186,38 @@ int main() {
     //testMergeFromTwoDataset("normal.csv", "exponential.csv", 1);
 
     /// Print dataset on a file
-    /// Distribution: 1 Normal, 2 Exponential, 3 Real Uniform,4 Gamma, 5 Chi Squared, 6 Weibull
+    //printDataset("normal.csv", 10000000, normal);
 
-    //printDataset("normal.csv", 10000000, 1);
+    return 0;
+}
+
+template <class Distribution>
+int printDataset(const string& name, int n_element, Distribution distribution) {
+
+    // open file for output
+    ofstream file;
+    file.open(name);
+    if (file.fail()) {
+        cout << "File not open" << endl;;
+        return -1;
+    }
+
+    // Init the distribution
+    default_random_engine generator;
+
+    double item;
+
+    for (int i = 0; i < n_element; i++) {
+
+        // generate pseudorandom number (item) according to the select distribution
+        item = distribution(generator);
+
+        // insert number (item) to the file
+        file << item << ", \n";
+
+    }
+
+    file.close();
 
     return 0;
 }
@@ -220,73 +241,11 @@ string getDistributionName(int distribution) {
     }
 }
 
-int printDataset(const string& name, int n_element, int distribution) {
-
-    // open file for output
-    ofstream file;
-    file.open(name);
-    if (file.fail()) {
-        cout << "File not open" << endl;;
-        return -1;
-    }
+template <class Distribution>
+int insertRandom(DDS_type *dds, double* stream, int stream_start, int n_element, Distribution distribution, int collapseType) {
 
     // Init the distribution
     default_random_engine generator;
-    normal_distribution<double> normal(NORMAL_MEAN,NORMAL_STDDEV);
-    exponential_distribution<double> exponential(EXPONENTIAL_LAMBDA);
-    uniform_real_distribution<double> uniform_real(REAL_UNIFORM_A,REAL_UNIFORM_B);
-    gamma_distribution<double> gamma(GAMMA_ALPHA,GAMMA_BETA);
-    chi_squared_distribution<double> chi_squared(CHI_SQUARED_N);
-    weibull_distribution<double> weibull(WEIBULL_A,WEIBULL_B);
-
-    double item;
-
-    for (int i = 0; i < n_element; i++) {
-
-        // generate pseudorandom number (item) according to the select distribution
-        switch (distribution) {
-            case 1:
-                item = normal(generator);
-                break;
-            case 2:
-                item = exponential(generator);
-                break;
-            case 3:
-                item = uniform_real(generator);
-                break;
-            case 4:
-                item = gamma(generator);
-                break;
-            case 5:
-                item = chi_squared(generator);
-                break;
-            case 6:
-                item = weibull(generator);
-                break;
-            default:
-                return -1;
-        }
-
-        // insert number (item) to the file
-        file << item << ", \n";
-
-    }
-
-    file.close();
-
-    return 0;
-}
-
-int insertRandom(DDS_type *dds, double* stream, int stream_start, int n_element, int distribution, int collapseType) {
-
-    // Init the distribution
-    default_random_engine generator;
-    normal_distribution<double> normal(NORMAL_MEAN,NORMAL_STDDEV);
-    exponential_distribution<double> exponential(EXPONENTIAL_LAMBDA);
-    uniform_real_distribution<double> uniform_real(REAL_UNIFORM_A,REAL_UNIFORM_B);
-    gamma_distribution<double> gamma(GAMMA_ALPHA,GAMMA_BETA);
-    chi_squared_distribution<double> chi_squared(CHI_SQUARED_N);
-    weibull_distribution<double> weibull(WEIBULL_A,WEIBULL_B);
 
     double item;
 
@@ -295,29 +254,7 @@ int insertRandom(DDS_type *dds, double* stream, int stream_start, int n_element,
     // add it to our DDSketch
     for (int i = 0; i < n_element; i++) {
 
-        switch (distribution) {
-            case 1:
-                item = normal(generator);
-                break;
-            case 2:
-                item = exponential(generator);
-                break;
-            case 3:
-                item = uniform_real(generator);
-                break;
-            case 4:
-                item = gamma(generator);
-                break;
-            case 5:
-                item = chi_squared(generator);
-                break;
-            case 6:
-                item = weibull(generator);
-                break;
-            default:
-                cout << "Wrong distribution number" << endl;
-                return -1;
-        }
+        item = distribution(generator);
 
         stream[i+stream_start] = item;
 
@@ -421,9 +358,10 @@ int loadDataset(const string &name_file, double *dataset, int start) {
     return 0;
 }
 
-int testWithRandomValue(int n_element, int distribution, int collapseType) {
+template <class Distribution>
+int testWithRandomValue(int n_element, Distribution distribution, int collapseType) {
 
-    cout << endl << BOLDRED << "Test with distribution: " << getDistributionName(distribution) << " initial alpha = " << DEFAULT_ALPHA << " bin limit = " << DEFAULT_BIN_LIMIT << RESET << endl;
+    cout << endl << BOLDRED << "Test with distribution: " << " initial alpha = " << DEFAULT_ALPHA << " bin limit = " << DEFAULT_BIN_LIMIT << RESET << endl;
 
     // init the sketch
     DDS_type* dds1 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
@@ -448,10 +386,10 @@ int testWithRandomValue(int n_element, int distribution, int collapseType) {
     return 0;
 }
 
-int testMergeWithRandomValue(int n_element1, int n_element2, int distribution1, int distribution2, int collapseType) {
+template <class Distribution>
+int testMergeWithRandomValue(int n_element1, int n_element2, Distribution distribution1, Distribution distribution2, int collapseType) {
 
-
-    cout << endl << BOLDRED << "Test with distribution: " << getDistributionName(distribution1) << " and " << getDistributionName(distribution2)  << " initial alpha = " << DEFAULT_ALPHA << " bin limit = " << DEFAULT_BIN_LIMIT << RESET << endl;
+    cout << endl << BOLDRED << "Test with distribution: " << " initial alpha = " << DEFAULT_ALPHA << " bin limit = " << DEFAULT_BIN_LIMIT << RESET << endl;
 
     // init the sketch
     DDS_type* dds1 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
