@@ -317,13 +317,15 @@ int DDS_DeleteCollapseLastBucket(DDS_type *dds, double item)
 
     int key = DDS_GetKey(dds, item);
     map<int, int>::iterator it;
+    map<int, int>::reverse_iterator rit;
 
     if ( key >= dds->min && key <= dds->max ) {
-
-        auto last = dds->bins->rbegin();
+        // the key within the [min,max] interval
+        rit = dds->bins->rbegin();
         key = it->first;
         it = dds->bins->find(key);
     } else {
+        // the key is outside the [min,max] interval
         it = dds->bins->find(key);
     }
 
@@ -372,9 +374,11 @@ int DDS_DeleteCollapseFirstBucket(DDS_type *dds, double item)
     map<int, int>::iterator it;
 
     if ( key >= dds->min && key <= dds->max ) {
+        // the key within the [min,max] interval
         it = dds->bins->begin();
         key = it->first;
     } else {
+        // the key is outside the [min,max] interval
         it = dds->bins->find(key);
     }
 
