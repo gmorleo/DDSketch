@@ -31,6 +31,8 @@ const int DEFAULT_OFFSET = 1073741824; //2^31/2
 const int DEFAULT_BIN_LIMIT = 500;
 const double DEFAULT_ALPHA = 0.008;
 
+int getErrorBound(DDS_type *dds, int collapseType);
+
 /**
  * \brief                   This function computes the dimension of the dataset
  * @param name_file         Name of dataset
@@ -165,9 +167,10 @@ int main() {
     /// Init the distribution
     default_random_engine generator;
     normal_distribution<double> normal(2,3);
+    normal_distribution<double> normal2(10,3);
     exponential_distribution<double> exponential(17);
-    uniform_real_distribution<double> uniform_real(-5,0);
-    uniform_real_distribution<double> uniform_real2(0,5);
+    uniform_real_distribution<double> uniform_real(-5,5);
+    uniform_real_distribution<double> uniform_real2(0,10);
     gamma_distribution<double> gamma(2,2);
 
     /// number of element
@@ -176,8 +179,8 @@ int main() {
     /// Test with random value
     /// Collapse type: 1 Collapse with gamma^2, 2 Collapse with last buckets, 3 Collapse with first buckets
 
-    testWithRandomValue(n_element, exponential, 1);
-    testWithRandomValue(n_element, exponential, 3);
+    testWithRandomValue(n_element, uniform_real, 1);
+    //testWithRandomValue(n_element, exponential, 3);
     //testWithRandomValue(n_element, normal, 1);
     //testWithRandomValue(n_element, normal, 3);
     //testMergeWithRandomValue(n_element,n_element,uniform_real,uniform_real2,1);
@@ -381,7 +384,12 @@ int testWithRandomValue(int n_element, Distribution distribution, int collapseTy
 
     // Test with random value
     insertRandom(dds1, stream, 0, n_element, distribution, collapseType);
+
+    getErrorBound(dds1, collapseType);
     testQuantile(dds1, stream, n_element);
+
+    DDS_PrintCSV(dds1, "prova2.csv");
+
     deleteElements(dds1, stream, n_element, collapseType);
 
     DDS_Destroy(dds1);
@@ -413,11 +421,14 @@ int testMergeWithRandomValue(int n_element1, int n_element2, Distribution distri
 
     cout << "first sketch: " << endl;
     insertRandom(dds1, stream, 0, n_element1, distribution1, collapseType);
+    DDS_PrintCSV(dds1, "primo.csv");
 
     cout << "second sketch: " << endl;
     insertRandom(dds2, stream, n_element1, n_element2, distribution2, collapseType);
+    DDS_PrintCSV(dds2, "secondo.csv");
 
     merge(dds1, dds2, collapseType);
+    //DDS_PrintCSV(dds1, "unione.csv");
     testQuantile(dds1, stream, n_element1 + n_element2);
     deleteElements(dds1, stream, n_element1 + n_element2, collapseType);
 
@@ -608,6 +619,28 @@ int deleteElements(DDS_type* dds, double* stream, int n_element, int collapseTyp
 
     cout << "Sketch size (number of bins) after delete is equal to " << DDS_Size(dds) << endl;
     cout << "Number of items in the sketch is equal to " << dds->n << endl << endl;
+
+    return 0;
+}
+
+int getErrorBound(DDS_type *dds, int collapseType) {
+
+    double result;
+
+    switch (collapseType) {
+        case 1:
+            cout << endl << "The estimates are always correct" << endl;
+            break;
+        case 2:
+            result = dds->bins->rbegin()->second;
+            result = result / dds->n;
+            cout << endl << "The estimates are wrong from " <<  (1-result) << " quantile" << endl;
+            break;
+        case 3:
+            result = dds->bins->begin()->second;
+            result = result / dds->n;
+            cout << endl << "The estimates are wrong up to " <<  result << " quantile" << endl;
+    }
 
     return 0;
 }

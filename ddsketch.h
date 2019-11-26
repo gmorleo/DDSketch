@@ -92,7 +92,7 @@ extern double DDS_GetRank(DDS_type *dds, int i);
  * @param i             The key of the bucket
  * @return
  */
-double DDS_GetBound(DDS_type *dds, int i);
+double DDS_GetValue(DDS_type *dds, int i);
 
 /**
  * @brief

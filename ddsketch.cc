@@ -68,10 +68,8 @@ void DDS_Destroy(DDS_type *dds)
 
 long DDS_Size(DDS_type *dds)
 {
-
     if(!dds){
         cout << "The sketch data structure is not valid" << endl;
-        return -1;
     }
 
     // return the number of bins currently in the sketch
@@ -83,7 +81,7 @@ int DDS_GetKey(DDS_type *dds, double item)
 
     if(!dds){
         cout << "The sketch data structure is not valid" << endl;
-        return -1;
+        return -4;
     }
 
     // Given a value (item), returns the correspondning bucket index
@@ -104,31 +102,30 @@ int DDS_GetKey(DDS_type *dds, double item)
 double DDS_GetRank(DDS_type *dds, int i)
 {
 
+    double result;
+
     if(!dds){
         cout << "The sketch data structure is not valid" << endl;
-        return -1;
+        return -4;
     }
 
     // Given a bucket index (i), this function returns the estimation of the rank x_q
 
     if (i > 0) {
         i -= dds->offset;
-        return (2 * pow(dds->gamma, i))/(dds->gamma + 1);
+        result =  (2 * pow(dds->gamma, i))/(dds->gamma + 1);
     } else if (i < 0){
         i += dds->offset;
-        return -(2 * pow(dds->gamma, -i))/(dds->gamma + 1);
+        result =  -(2 * pow(dds->gamma, -i))/(dds->gamma + 1);
     } else if ( i == 0) {
-        return dds->min_value;
+        result = dds->min_value;
     }
+
+    return result;
 
 }
 
-double DDS_GetBound(DDS_type *dds, int i) {
-
-    if(!dds){
-        cout << "The sketch data structure is not valid" << endl;
-        return -1;
-    }
+double DDS_GetValue(DDS_type *dds, int i) {
 
     // if the bucket index is positive subtract the offset, otherwise add the offset
     // then, compute the bound by exponentiating gamma
@@ -147,11 +144,31 @@ double DDS_GetBound(DDS_type *dds, int i) {
 
 }
 
+int DDS_GetBounds(DDS_type *dds, int i, double* min, double* max) {
+
+    // if the bucket index is positive subtract the offset, otherwise add the offset
+    // then, compute the bound by exponentiating gamma
+
+    if ( i > 0) {
+        i -= dds->offset;
+        (*max) = pow(dds->gamma,i);
+        (*min) = pow(dds->gamma,i-1);
+    } else {
+        i += dds->offset;
+        i = -i;
+        *min = -pow(dds->gamma,i);
+        *max = -pow(dds->gamma,i-1);
+    }
+
+    return 0;
+
+}
+
 int DDS_CollapseKey(DDS_type* dds, double i, int of){
 
     if(!dds){
         cout << "The sketch data structure is not valid" << endl;
-        return -1;
+        return -4;
     }
 
     // if the bucket index is positive subtract the offset, otherwise add the offset
@@ -173,12 +190,13 @@ int DDS_CollapseKey(DDS_type* dds, double i, int of){
     return int(i);
 }
 
+
 int DDS_AddCollapse(DDS_type *dds, double item)
 {
 
     if(!dds){
         cout << "The sketch data structure is not valid" << endl;
-        return -1;
+        return -4;
     }
 
     // this function creates a new bucket with index associated with the value (item), or if that bucket already exists, it
@@ -207,7 +225,7 @@ int DDS_AddCollapseLastBucket(DDS_type *dds, double item)
 
     if(!dds){
         cout << "The sketch data structure is not valid" << endl;
-        return -1;
+        return -4;
     }
 
     // this function creates a new bucket with index associated with the value (item), or if that bucket already exists, it
@@ -236,7 +254,7 @@ int DDS_AddCollapseFirstBucket(DDS_type *dds, double item)
 
     if(!dds){
         cout << "The sketch data structure is not valid" << endl;
-        return -1;
+        return -4;
     }
 
     // this function creates a new bucket with index associated with the value (item), or if that bucket already exists, it
@@ -265,7 +283,7 @@ int DDS_DeleteCollapse(DDS_type *dds, double item)
 
     if(!dds){
         cout << "The sketch data structure is not valid" << endl;
-        return -1;
+        return -4;
     }
 
     // this function deletes the bucket with index associated with the value (item) if it exists and its value is equal to 1
@@ -309,7 +327,7 @@ int DDS_DeleteCollapseLastBucket(DDS_type *dds, double item)
 
     if(!dds){
         cout << "The sketch data structure is not valid" << endl;
-        return -1;
+        return -4;
     }
 
     // this function deletes the bucket with index associated with the value (item) if it exists and its value is equal to 1
@@ -319,9 +337,8 @@ int DDS_DeleteCollapseLastBucket(DDS_type *dds, double item)
     map<int, int>::iterator it;
 
     if ( key >= dds->min && key <= dds->max ) {
-
         auto last = dds->bins->rbegin();
-        key = it->first;
+        key = last->first;
         it = dds->bins->find(key);
     } else {
         it = dds->bins->find(key);
@@ -362,7 +379,7 @@ int DDS_DeleteCollapseFirstBucket(DDS_type *dds, double item)
 
     if(!dds){
         cout << "The sketch data structure is not valid" << endl;
-        return -1;
+        return -4;
     }
 
     // this function deletes the bucket with index associated with the value (item) if it exists and its value is equal to 1
@@ -413,7 +430,7 @@ double DDS_GetQuantile(DDS_type *dds, float q)
 
     if(!dds){
         cout << "The sketch data structure is not valid" << endl;
-        return -1;
+        return -4;
     }
 
     // If the value (q) is not in the [0,1] interval return NaN
@@ -450,7 +467,7 @@ int DDS_MergeCollapse(DDS_type *dds1, DDS_type *dds2) {
 
     if(!dds1 || !dds2){
         cout << "The sketch data structure is not valid" << endl;
-        return -1;
+        return -4;
     }
 
     cout << "Size before merge sketch1 = " << DDS_Size(dds1) << " sketch2 = " << DDS_Size(dds2) << endl;
@@ -458,7 +475,7 @@ int DDS_MergeCollapse(DDS_type *dds1, DDS_type *dds2) {
     startTheClock();
 
     // Check if the bins have the same alpha
-    while (!DDS_isMergeable(dds1,dds2)){
+    while (fabs(dds1->alpha - dds2->alpha) > 0.0000001){
         if (dds1->alpha < dds2->alpha) {
             DDS_Collapse(dds1);
         } else {
@@ -490,7 +507,7 @@ int DDS_MergeCollapseLastBucket(DDS_type *dds1, DDS_type *dds2) {
 
     if(!dds1 || !dds2){
         cout << "The sketch data structure is not valid" << endl;
-        return -1;
+        return -4;
     }
 
     cout << "Size before merge sketch1 = " << DDS_Size(dds1) << " sketch2 = " << DDS_Size(dds2) << endl;
@@ -527,7 +544,7 @@ int DDS_MergeCollapseFirstBucket(DDS_type *dds1, DDS_type *dds2) {
 
     if(!dds1 || !dds2){
         cout << "The sketch data structure is not valid" << endl;
-        return -1;
+        return -4;
     }
 
     cout << "Size before merge sketch1 = " << DDS_Size(dds1) << " sketch2 = " << DDS_Size(dds2) << endl;
@@ -564,7 +581,7 @@ int DDS_CollapseLastBucket(DDS_type *dds) {
 
     if(!dds){
         cout << "The sketch data structure is not valid" << endl;
-        return -1;
+        return -4;
     }
 
     // collapse the second bucket into the first bucket
@@ -573,7 +590,7 @@ int DDS_CollapseLastBucket(DDS_type *dds) {
     auto second_last = --dds->bins->rbegin();
 
     if ( second_last->first < dds->min) {
-        dds->min = (second_last->first-1);
+        dds->min = (second_last->first);
     }
     if ( last->first > dds->max) {
         dds->max = last->first;
@@ -589,7 +606,7 @@ int DDS_CollapseFirstBucket(DDS_type *dds) {
 
     if(!dds){
         cout << "The sketch data structure is not valid" << endl;
-        return -1;
+        return -4;
     }
 
     // collapse the second last bucket into the last bucket
@@ -598,7 +615,7 @@ int DDS_CollapseFirstBucket(DDS_type *dds) {
     auto second = ++dds->bins->begin();
 
     if ( first->first < dds->min) {
-        dds->min = (first->first-1);
+        dds->min = (first->first);
     }
     if ( second->first > dds->max) {
         dds->max = (second->first);
@@ -614,7 +631,7 @@ int DDS_Collapse(DDS_type *dds) {
 
     if(!dds){
         cout << "The sketch data structure is not valid" << endl;
-        return -1;
+        return -4;
     }
 
     cout << "Size before collapse: " << DDS_Size(dds) << " sum: " << DDS_SumBins(dds) << " alpha: " << dds->alpha << " gamma: " << dds->gamma << endl;
@@ -667,7 +684,7 @@ int DDS_PrintCSV(DDS_type* dds, string name) {
 
     if(!dds){
         cout << "The sketch data structure is not valid" << endl;
-        return -1;
+        return -4;
     }
 
     ofstream file;
@@ -682,18 +699,11 @@ int DDS_PrintCSV(DDS_type* dds, string name) {
     file << "key, count, max, min, length, \n";
     for (auto & bin : (*(dds->bins))) {
 
-        double max, min;
+        double* max = new double;
+        double* min = new double;
+        DDS_GetBounds(dds, bin.first, min, max);
 
-        if ( bin.first > 0) {
-            max = DDS_GetBound(dds, bin.first);
-            min = DDS_GetBound(dds, (bin.first - 1));
-        } else {
-            max = DDS_GetBound(dds, bin.first);
-            min = DDS_GetBound(dds, (bin.first + 1));
-        }
-
-
-        file << DDS_RemoveOffset(dds, bin.first) <<", "<<bin.second<<", "<<max<<", "<< min <<", "<<max-min<<", \n";
+        file << DDS_RemoveOffset(dds, bin.first) <<", "<<bin.second<<", "<< *max<<", "<< *min <<", "<<max-min<<", \n";
 
     }
 
@@ -706,7 +716,7 @@ long DDS_SumBins(DDS_type *dds) {
 
     if(!dds){
         cout << "The sketch data structure is not valid" << endl;
-        return -1;
+        return -4;
     }
 
     long sum = 0;
@@ -722,7 +732,7 @@ int DDS_RemoveOffset(DDS_type* dds, int i) {
 
     if(!dds){
         cout << "The sketch data structure is not valid" << endl;
-        return -1;
+        return -4;
     }
 
     if (i > 0) {
@@ -738,7 +748,7 @@ int DDS_AddOffset(DDS_type* dds, int i){
 
     if(!dds){
         cout << "The sketch data structure is not valid" << endl;
-        return -1;
+        return -4;
     }
 
     if (i > 0) {
