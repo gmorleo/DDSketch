@@ -179,7 +179,7 @@ int main() {
     /// Test with random value
     /// Collapse type: 1 Collapse with gamma^2, 2 Collapse with last buckets, 3 Collapse with first buckets
 
-    testWithRandomValue(n_element, uniform_real, 1);
+    testWithRandomValue(n_element, uniform_real, 2);
     //testWithRandomValue(n_element, exponential, 3);
     //testWithRandomValue(n_element, normal, 1);
     //testWithRandomValue(n_element, normal, 3);
@@ -634,12 +634,12 @@ int getErrorBound(DDS_type *dds, int collapseType) {
         case 2:
             result = dds->bins->rbegin()->second;
             result = result / dds->n;
-            cout << endl << "The estimates are wrong from " <<  (1-result) << " quantile" << endl;
+            cout << endl << "The estimates are wrong with quantiles between " <<  (1-result) << " and " << 1 << endl;
             break;
         case 3:
             result = dds->bins->begin()->second;
             result = result / dds->n;
-            cout << endl << "The estimates are wrong up to " <<  result << " quantile" << endl;
+            cout << endl << "The estimates are wrong with quantiles between " <<  0 << " and " << result << endl;
     }
 
     return 0;
