@@ -22,6 +22,8 @@
 #include <fstream>
 #include <iomanip>
 #include "ddsketch.h"
+#include "error.h"
+
 #define BOLDRED     "\033[1m\033[31m"      /* Bold Red */
 #define RESET   "\033[0m"
 
@@ -174,12 +176,12 @@ int main() {
     gamma_distribution<double> gamma(2,2);
 
     /// number of element
-    int n_element = pow(10,7);
+    int n_element = pow(10,5);
 
     /// Test with random value
     /// Collapse type: 1 Collapse with gamma^2, 2 Collapse with last buckets, 3 Collapse with first buckets
 
-    testWithRandomValue(n_element, uniform_real, 2);
+    testWithRandomValue(n_element, exponential, 3);
     //testWithRandomValue(n_element, exponential, 3);
     //testWithRandomValue(n_element, normal, 1);
     //testWithRandomValue(n_element, normal, 3);
@@ -260,6 +262,7 @@ int insertRandom(DDS_type *dds, double* stream, int stream_start, int n_element,
     // insert item into the stream vector and
     // add it to our DDSketch
     for (int i = 0; i < n_element; i++) {
+        cout << i << endl;
 
         item = distribution(generator);
 
@@ -565,6 +568,9 @@ int testMergeFromTwoDataset(const string& dataset1_name, const string& dataset2_
 
 int testQuantile(DDS_type *dds, double* stream, int n_element) {
 
+    int *error = new int;
+    *error = 0;
+
     // Determine the quantile
     float q[] = { 0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99};
     int n_q = 11;
@@ -581,15 +587,18 @@ int testQuantile(DDS_type *dds, double* stream, int n_element) {
         // note that we are not sorting the vector, we are using the quickselect() algorithm
         // which in C++ is available as std::nth_element
         nth_element(stream, stream + (idx-1), stream +  n_element);
-        double quantile = DDS_GetQuantile(dds, q[i]);
+        double quantile = DDS_GetQuantile(dds, q[i], error);
+        if ( *error < 0 ) {
+            return *error;
+        }
         if (quantile == numeric_limits<double>::quiet_NaN()) {
-            cout << "q must be in the interval [0,1]" << endl;
-            return  -2;
+            printError(QUANTILE_ERROR, __FUNCTION__);
+            return QUANTILE_ERROR;
         }
 
-        double error = abs((quantile-stream[idx-1])/stream[idx-1]);
+        double er = abs((quantile-stream[idx-1])/stream[idx-1]);
 
-        cout << "|" << setw(10) << q[i]<< "|" << setw(15) << quantile << "|" << setw(15) << stream[idx-1] << "|"  << setw(15)<< error << "|" << endl;
+        cout << "|" << setw(10) << q[i]<< "|" << setw(15) << quantile << "|" << setw(15) << stream[idx-1] << "|"  << setw(15)<< er << "|" << endl;
 
     }
 
@@ -600,6 +609,9 @@ int testQuantile(DDS_type *dds, double* stream, int n_element) {
 
 int deleteElements(DDS_type* dds, double* stream, int n_element, int collapseType) {
 
+    int *error = new int;
+    *error = 0;
+
     // now check that delete works
     cout <<  endl << "Sketch size (number of bins) before delete is equal to " << DDS_Size(dds) << endl;
     cout << "Number of items in the sketch is equal to " << dds->n << endl << endl;
@@ -607,20 +619,29 @@ int deleteElements(DDS_type* dds, double* stream, int n_element, int collapseTyp
     for (int i = 0; i < n_element; i++) {
         switch (collapseType) {
             case 1:
-                DDS_DeleteCollapse(dds, stream[i]);
+                *error = DDS_DeleteCollapse(dds, stream[i]);
+                if ( *error < 0 ) {
+                    return *error;
+                }
                 break;
             case 2:
                 DDS_DeleteCollapseLastBucket(dds, stream[i]);
+                if ( *error < 0 ) {
+                    return *error;
+                }
                 break;
             case 3:
                 DDS_DeleteCollapseFirstBucket(dds, stream[i]);
+                if ( *error < 0 ) {
+                    return *error;
+                }
         }
     }
 
     cout << "Sketch size (number of bins) after delete is equal to " << DDS_Size(dds) << endl;
     cout << "Number of items in the sketch is equal to " << dds->n << endl << endl;
 
-    return 0;
+    return *error;
 }
 
 int getErrorBound(DDS_type *dds, int collapseType) {

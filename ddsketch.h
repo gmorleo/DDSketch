@@ -68,7 +68,7 @@ extern void DDS_Destroy(DDS_type *dds);
  * @param dds           The sketch
  * @return              The bins size, (number of bins)
  */
-extern long DDS_Size(DDS_type *dds);
+extern int DDS_Size(DDS_type *dds);
 
 /**
  * \brief               Given a value (item), getKey returns the bucket index
@@ -76,7 +76,7 @@ extern long DDS_Size(DDS_type *dds);
  * @param item          The input value
  * @return              The index of the bucket containing the item
  */
-extern int DDS_GetKey(DDS_type *dds, double item);
+extern int DDS_GetKey(DDS_type *dds, double item, int *error);
 
 /**
  * \brief               Given a bucket index (i), this function returns the estimation of the rank x_q
@@ -84,7 +84,7 @@ extern int DDS_GetKey(DDS_type *dds, double item);
  * @param i             The key of the bucket
  * @return              The estimate of the rank x_q
  */
-extern double DDS_GetRank(DDS_type *dds, int i);
+extern double DDS_GetRank(DDS_type *dds, int i, int *error);
 
 /**
  * @brief               This function returns the bound associated with the key (i), (gamma^i)
@@ -92,7 +92,7 @@ extern double DDS_GetRank(DDS_type *dds, int i);
  * @param i             The key of the bucket
  * @return
  */
-double DDS_GetValue(DDS_type *dds, int i);
+double DDS_GetValue(DDS_type *dds, int i, int *error);
 
 /**
  * @brief
@@ -101,7 +101,7 @@ double DDS_GetValue(DDS_type *dds, int i);
  * @param of            1 or -1 the value to add to the key
  * @return              the new bucket index
  */
-extern int DDS_CollapseKey(DDS_type* dds, double i, int of);
+extern int DDS_CollapseKey(DDS_type* dds, double i, int of, int *error);
 
 /**
  * \brief               The function computes the estimate of the desired q-quantile (q)
@@ -109,7 +109,7 @@ extern int DDS_CollapseKey(DDS_type* dds, double i, int of);
  * @param q             The desired q-quantile
  * @return              The estimate of the desired q-quantile
  */
-extern double DDS_GetQuantile(DDS_type *dds, float q);
+extern double DDS_GetQuantile(DDS_type *dds, float q, int *error);
 
 /**
  * @brief               This function computes the sum of the counters stored in the bins
@@ -132,7 +132,7 @@ extern int DDS_PrintCSV(DDS_type* dds, string name);
  * @param i             the bucket index
  * @return              the bucket index minus the offset
  */
-extern int DDS_RemoveOffset(DDS_type* dds, int i);
+extern int DDS_RemoveOffset(DDS_type* dds, int i, int *error);
 
 
 /*** Functions to use the gamma^2 collapsing ***/
@@ -222,7 +222,7 @@ extern int DDS_CollapseFirstBucket(DDS_type *dds);
  * @param item          The input value
  * @return              0 success
  */
-extern int DDS_DeleteCollapseFirstBucket(DDS_type *dds, double item);
+extern int DDS_DeleteCollapseFirstBucket(DDS_type *dds, double itemr);
 
 /**
  * \brief               Merge function: merges the bins in dds1 with the bins of dds2; dds1 is the result of the merge operation

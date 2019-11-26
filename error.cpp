@@ -4,11 +4,11 @@
 
 #include "error.h"
 
-int printError(int error) {
+int printError(int error, string nameFunction) {
 
     switch (error) {
         case -1:
-            cout << "Generic error" << endl;
+            cout << "Error on " << nameFunction << " function" << endl;
             break;
         case -2:
             cout << "Not enough memory" << endl;
@@ -18,6 +18,7 @@ int printError(int error) {
             break;
         case -4:
             cout << "The sketch data structure is not valid" << endl;
+            break;
     }
 
     return 0;
