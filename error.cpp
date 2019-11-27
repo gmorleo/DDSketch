@@ -4,7 +4,7 @@
 
 #include "error.h"
 
-int printError(int error, string nameFunction) {
+int printError(int error, const string& nameFunction) {
 
     switch (error) {
         case -1:

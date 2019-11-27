@@ -40,7 +40,7 @@ int getErrorBound(DDS_type *dds, int collapseType);
  * @param name_file         Name of dataset
  * @return                  Return the number of element in the dataset(row)
  */
-int getDatasetSize(const string &name_file);
+int getDatasetSize(const string &name_file, int &rows);
 
 /**
  * \brief                   This function loads the dataset into an array
@@ -48,7 +48,7 @@ int getDatasetSize(const string &name_file);
  * @param dataset           Array
  * @return                  An array containing the whole dataset
  */
-int loadDataset(const string &name_file, double *dataset, int start);
+int loadDataset(const string &name_file, double *dataset);
 
 /**
  * @brief                   This function returns the distribution name
@@ -77,7 +77,7 @@ int printDataset(const string& name, int n_element, Distribution distribution);
  * @return                  0 success -1 error
  */
 template <class Distribution>
-int insertRandom(DDS_type *dds, double* stream, int stream_start, int n_element, Distribution distribution, int collapseType);
+int insertRandom(DDS_type *dds, double* stream, int n_element, Distribution distribution, int collapseType);
 
 /**
  * @brief                   This function inserts elements from index (start) to index (stop) from dataset to the sketch according to the selected collapse type
@@ -176,13 +176,13 @@ int main() {
     gamma_distribution<double> gamma(2,2);
 
     /// number of element
-    int n_element = pow(10,5);
+    int n_element = pow(10,7);
 
     /// Test with random value
     /// Collapse type: 1 Collapse with gamma^2, 2 Collapse with last buckets, 3 Collapse with first buckets
 
-    testWithRandomValue(n_element, exponential, 3);
-    //testWithRandomValue(n_element, exponential, 3);
+    //testWithRandomValue(n_element, uniform_real, 3);
+    //testWithRandomValue(n_element, uniform_real, 3);
     //testWithRandomValue(n_element, normal, 1);
     //testWithRandomValue(n_element, normal, 3);
     //testMergeWithRandomValue(n_element,n_element,uniform_real,uniform_real2,1);
@@ -192,10 +192,10 @@ int main() {
     /// Collapse type: 1 Collapse with gamma^2, 2 Collapse with last buckets, 3 Collapse with first bucket
 
     //testMergeFromDataset("normal.csv", 1);
-    //testMergeFromTwoDataset("normal.csv", "exponential.csv", 1);
+    testMergeFromTwoDataset("normal.csv", "uniform_real.csv", 1);
 
     /// Print dataset on a file
-    //printDataset("normal.csv", 10000000, normal);
+    //printDataset("uniform_real.csv", 10000000, uniform_real);
 
     return 0;
 }
@@ -207,8 +207,8 @@ int printDataset(const string& name, int n_element, Distribution distribution) {
     ofstream file;
     file.open(name);
     if (file.fail()) {
-        cout << "File not open" << endl;;
-        return -1;
+        printError(FILE_ERROR, __FUNCTION__);
+        return FILE_ERROR;
     }
 
     // Init the distribution
@@ -228,7 +228,7 @@ int printDataset(const string& name, int n_element, Distribution distribution) {
 
     file.close();
 
-    return 0;
+    return SUCCESS;
 }
 
 string getDistributionName(int distribution) {
@@ -251,7 +251,9 @@ string getDistributionName(int distribution) {
 }
 
 template <class Distribution>
-int insertRandom(DDS_type *dds, double* stream, int stream_start, int n_element, Distribution distribution, int collapseType) {
+int insertRandom(DDS_type *dds, double* stream, int n_element, Distribution distribution, int collapseType) {
+
+    int returnValue = -1;
 
     // Init the distribution
     default_random_engine generator;
@@ -262,314 +264,649 @@ int insertRandom(DDS_type *dds, double* stream, int stream_start, int n_element,
     // insert item into the stream vector and
     // add it to our DDSketch
     for (int i = 0; i < n_element; i++) {
-        cout << i << endl;
 
         item = distribution(generator);
 
-        stream[i+stream_start] = item;
+        stream[i] = item;
 
         switch (collapseType) {
             case 1:
-                DDS_AddCollapse(dds, item);
+                returnValue = DDS_AddCollapse(dds, item);
+                if (returnValue) {
+                    return  returnValue;
+                }
                 break;
             case 2:
-                DDS_AddCollapseLastBucket(dds, item);
+                returnValue = DDS_AddCollapseLastBucket(dds, item);
+                if (returnValue) {
+                    return  returnValue;
+                }
                 break;
             case 3:
-                DDS_AddCollapseFirstBucket(dds, item);
+                returnValue = DDS_AddCollapseFirstBucket(dds, item);
+                if (returnValue) {
+                    return  returnValue;
+                }
                 break;
             default:
-                cout << "Wrong collapse type number" << endl;
-                return -1;
+                printError(UNKNOWN_COLLAPSE_TYPE, __FUNCTION__);
+                return UNKNOWN_COLLAPSE_TYPE;
         }
 
     }
 
-    return 0;
+    return returnValue;
 }
 
 int insertFromDataset(DDS_type* dds, int start, int stop, double* dataset, int collapseType) {
 
+    int returnValue = -1;
+
     // insert item into  our DDSketch
-    if ( collapseType == 1 ) {
-        for (int i = start; i < stop; i++) {
-            DDS_AddCollapse(dds, dataset[i]);
+    for (int i = start; i < stop; i++) {
+        switch (collapseType) {
+            case 1:
+                returnValue = DDS_AddCollapse(dds, dataset[i]);;
+                if (returnValue) {
+                    return returnValue;
+                }
+                break;
+            case 2:
+                returnValue = DDS_AddCollapseLastBucket(dds, dataset[i]);
+                if (returnValue) {
+                    return returnValue;
+                }
+                break;
+            case 3:
+                returnValue = DDS_AddCollapseFirstBucket(dds, dataset[i]);
+                if (returnValue) {
+                    return returnValue;
+                }
+                break;
+            default:
+                printError(UNKNOWN_COLLAPSE_TYPE, __FUNCTION__);
+                return UNKNOWN_COLLAPSE_TYPE;
         }
-    } else if ( collapseType == 2 ) {
-        for (int i = start; i < stop; i++) {
-            DDS_AddCollapseLastBucket(dds, dataset[i]);
-        }
-    } else if ( collapseType == 3 ) {
-        for (int i = start; i < stop; i++) {
-            DDS_AddCollapseFirstBucket(dds, dataset[i]);
-        }
-    } else {
-        cout << "Wrong collapse type number" << endl;
-        return -1;
     }
 
-    return 0;
+
+    return returnValue;
 }
 
 int merge(DDS_type* dds1, DDS_type* dds2, int collapseType) {
 
+    int returnValue = -1;
+
     // selects the merge function based on the selected collapse method
     switch (collapseType) {
         case 1:
-            DDS_MergeCollapse(dds1, dds2);
+            returnValue = DDS_MergeCollapse(dds1, dds2);
+            if (returnValue) {
+                return returnValue;
+            }
             break;
         case 2:
-            DDS_MergeCollapseLastBucket(dds1, dds2);
+            returnValue = DDS_MergeCollapseLastBucket(dds1, dds2);
+            if (returnValue) {
+                return returnValue;
+            }
             break;
         case 3:
-            DDS_MergeCollapseFirstBucket(dds1, dds2);
+            returnValue = DDS_MergeCollapseFirstBucket(dds1, dds2);
+            if (returnValue) {
+                return returnValue;
+            }
             break;
         default:
-            return -1;
+            printError(UNKNOWN_COLLAPSE_TYPE, __FUNCTION__);
+            return UNKNOWN_COLLAPSE_TYPE;
     }
 
-    return 0;
-}
-
-int getDatasetSize(const string &name_file) {
-
-    ifstream inputFile(name_file);
-    if (inputFile.fail()) {
-        cout << "Error " << name_file << " not opened" << endl;
-        return -5;
-    }
-    string line;
-
-    long rows = 0;
-
-    while (getline(inputFile, line))
-        rows++;
-
-    return rows;
-}
-
-int loadDataset(const string &name_file, double *dataset, int start) {
-
-    ifstream inputFile(name_file);
-    if (inputFile.fail()) {
-        cout << "Error " << name_file << " not opened" << endl;
-        return -5;
-    }
-
-    string line;
-
-    int row = start;
-
-    while (getline(inputFile, line)) {
-        dataset[row] = stod(line);
-        row++;
-    }
-
-    return 0;
+    return returnValue;
 }
 
 template <class Distribution>
 int testWithRandomValue(int n_element, Distribution distribution, int collapseType) {
 
+    /*** Test sketch with random values ***/
+
     cout << endl << BOLDRED << "Test with distribution: " << " initial alpha = " << DEFAULT_ALPHA << " bin limit = " << DEFAULT_BIN_LIMIT << RESET << endl;
 
-    // init the sketch
-    DDS_type* dds1 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
-
-    // init array for all the elements
+    int returnValue = -1;
+    DDS_type* dds1 = nullptr;
     double* stream = nullptr;
-    stream = new (nothrow) double[n_element];
-    if(!stream){
-        cout << "Not enough memory" << endl;
-        DDS_Destroy(dds1);
-        return -2;
+
+    /*** Init sketch ***/
+    dds1 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
+    if (!dds1) {
+        goto ON_EXIT;
     }
 
-    // Test with random value
-    insertRandom(dds1, stream, 0, n_element, distribution, collapseType);
+    /*** Init array ***/
+    stream = new (nothrow) double[n_element];
+    if(!stream){
+        printError(MEMORY_ERROR, __FUNCTION__);
+        returnValue = MEMORY_ERROR;
+        goto ON_EXIT;
+    }
 
-    getErrorBound(dds1, collapseType);
-    testQuantile(dds1, stream, n_element);
+    /*** Test with one sketch ***/
 
-    DDS_PrintCSV(dds1, "prova2.csv");
+    // insert items into the sketch
+    returnValue = insertRandom(dds1, stream, n_element, distribution, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
 
-    deleteElements(dds1, stream, n_element, collapseType);
+    // compute the range of wrong quantiles
+    returnValue = getErrorBound(dds1, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
 
-    DDS_Destroy(dds1);
-    delete[] stream, stream = nullptr;
+    // test quantile
+    returnValue = testQuantile(dds1, stream, n_element);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
 
-    return 0;
+    // test delete
+    returnValue = deleteElements(dds1, stream, n_element, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    ON_EXIT:
+
+    if (dds1 != nullptr) {
+        DDS_Destroy(dds1);
+    }
+    if (stream != nullptr) {
+        delete[] stream, stream = nullptr;
+    }
+
+    return returnValue;
 }
 
 template <class Distribution>
 int testMergeWithRandomValue(int n_element1, int n_element2, Distribution distribution1, Distribution distribution2, int collapseType) {
 
+    /*** Test merge function with random values ***/
+
     cout << endl << BOLDRED << "Test with distribution: " << " initial alpha = " << DEFAULT_ALPHA << " bin limit = " << DEFAULT_BIN_LIMIT << RESET << endl;
 
-    // init the sketch
-    DDS_type* dds1 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
-    DDS_type* dds2 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
+    int returnValue = -1;
+    DDS_type *dds1 = nullptr;
+    DDS_type *dds2 = nullptr;
+    double *stream1 = nullptr;
+    double *stream2 = nullptr;
+    double *stream = nullptr;
 
-    // init array for all the elements
-    double* stream = nullptr;
-    stream = new (nothrow) double[n_element1+n_element2];
-    if(!stream){
-        cout << "Not enough memory" << endl;
-        DDS_Destroy(dds1);
-        return -2;
+    /*** Init sketch ***/
+    dds1 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
+    if (!dds1) {
+        goto ON_EXIT;
     }
 
-    // Test merge with two sketches
+    dds2 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
+    if (!dds2) {
+        goto ON_EXIT;
+    }
+
+    /*** Init array ***/
+    stream1 = new (nothrow) double[n_element1];
+    if(!stream1){
+        printError(MEMORY_ERROR, __FUNCTION__);
+        returnValue = MEMORY_ERROR;
+        goto ON_EXIT;
+    }
+
+    stream2 = new (nothrow) double[n_element2];
+    if(!stream2){
+        printError(MEMORY_ERROR, __FUNCTION__);
+        returnValue = MEMORY_ERROR;
+        goto ON_EXIT;
+    }
+
+    /*** Test with 2 sketches ***/
+
     cout << endl << BOLDRED << "Test with two sketches" << RESET << endl;
 
-    cout << "first sketch: " << endl;
-    insertRandom(dds1, stream, 0, n_element1, distribution1, collapseType);
-    DDS_PrintCSV(dds1, "primo.csv");
+    // insert items into the first sketch
+    returnValue = insertRandom(dds1, stream1, n_element1, distribution1, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
 
-    cout << "second sketch: " << endl;
-    insertRandom(dds2, stream, n_element1, n_element2, distribution2, collapseType);
-    DDS_PrintCSV(dds2, "secondo.csv");
+    // insert items into the second sketch
+    returnValue = insertRandom(dds2, stream2, n_element2, distribution2, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
 
-    merge(dds1, dds2, collapseType);
-    //DDS_PrintCSV(dds1, "unione.csv");
-    testQuantile(dds1, stream, n_element1 + n_element2);
-    deleteElements(dds1, stream, n_element1 + n_element2, collapseType);
+    /*** Merge ***/
 
-    // reset dds1
-    DDS_Destroy(dds1);
-    dds1 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
+    returnValue = merge(dds1, dds2, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    stream = new (nothrow) double[n_element1+n_element2];
+    if(!stream){
+        printError(MEMORY_ERROR, __FUNCTION__);
+        returnValue = MEMORY_ERROR;
+        goto ON_EXIT;
+    }
+
+    // Merge stream
+
+    try {
+        move( stream1, stream1+n_element1, stream );
+        move( stream2, stream2+n_element2, stream + n_element1 );
+    } catch (int e) {
+        printError(COPY_ERROR, __FUNCTION__);
+        returnValue = e;
+        goto ON_EXIT;
+    }
+
+    // compute the range of wrong quantiles
+    returnValue = getErrorBound(dds1, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    // test quantile
+    returnValue = testQuantile(dds1, stream, n_element1 + n_element2);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    // test delete
+    returnValue = deleteElements(dds1, stream, n_element1 + n_element2, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    /*** Test with one sketch ***/
 
     cout << BOLDRED << "Test with one sketch" << RESET << endl;
 
-    // Test result with only one sketch
-    insertFromDataset(dds1, 0, n_element1 + n_element2, stream, collapseType);
-    testQuantile(dds1, stream, n_element1 + n_element2);
-    deleteElements(dds1, stream, n_element1 + n_element2, collapseType);
-
-    // deallocate the sketch data structure
     DDS_Destroy(dds1);
-    DDS_Destroy(dds2);
+    dds1 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
+    if (!dds1) {
+        goto ON_EXIT;
+    }
 
-    delete[] stream, stream = nullptr;
-    return 0;
+    // insert items into the sketch
+    returnValue = insertFromDataset(dds1, 0, n_element1 + n_element2, stream, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    // compute the range of wrong quantiles
+    returnValue = getErrorBound(dds1, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    // test quantile
+    returnValue = testQuantile(dds1, stream, n_element1 + n_element2);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    // test delete
+    returnValue = deleteElements(dds1, stream, n_element1 + n_element2, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    /*** Deallocate the sketch data structure ***/
+
+    ON_EXIT:
+
+    if (dds1 != nullptr) {
+        DDS_Destroy(dds1);
+    }
+
+    if (dds2 != nullptr) {
+        DDS_Destroy(dds2);
+    }
+
+    if (stream != nullptr) {
+        delete[] stream, stream = nullptr;
+    }
+
+    if (stream1 != nullptr) {
+        delete[] stream1, stream1 = nullptr;
+    }
+
+    if (stream2 != nullptr) {
+        delete[] stream2, stream2 = nullptr;
+    }
+
+    return returnValue;
 }
 
 int testMergeFromDataset(const string& dataset_name, int collapseType) {
 
-    // Test merge function with items from dataset
+    /*** Test merge function with items from dataset ***/
+
     cout << endl << BOLDRED << "Test with dataset: " << dataset_name << " initial alpha = " << DEFAULT_ALPHA << " bin limit = " << DEFAULT_BIN_LIMIT << RESET << endl << endl;
 
-    // init the sketch
-    DDS_type *dds1 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
-    DDS_type *dds2 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
+    int returnValue = -1;
+    DDS_type *dds1 = nullptr;
+    DDS_type *dds2 = nullptr;
+    double *dataset = nullptr;
 
-    // load dataset
-    int n_element = getDatasetSize(dataset_name);
+    int n_element;
 
-    // init array for all the elements
-    double* dataset = nullptr;
-    dataset = new (nothrow) double[n_element];
-    if(!dataset){
-        cout << "Not enough memory" << endl;
-        DDS_Destroy(dds1);
-        DDS_Destroy(dds2);
-        return -2;
+    /*** Init sketch ***/
+    dds1 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
+    if (!dds1) {
+        goto ON_EXIT;
     }
 
-    loadDataset(dataset_name, dataset, 0);
+    dds2 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
+    if (!dds2) {
+        goto ON_EXIT;
+    }
+
+    /*** Init array ***/
+    returnValue = getDatasetSize(dataset_name, n_element);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    dataset = new (nothrow) double[n_element];
+    if(!dataset){
+        printError(MEMORY_ERROR, __FUNCTION__);
+        returnValue = MEMORY_ERROR;
+        goto ON_EXIT;
+    }
+
+    /*** Load dataset ***/
+    returnValue = loadDataset(dataset_name, dataset);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    /*** Test with 2 sketches ***/
 
     cout << endl << BOLDRED << "Test with two sketches" << RESET << endl;
 
-    // Insert items into two sketches
-    insertFromDataset(dds1, 0, ceil(n_element/2), dataset, collapseType);
-    insertFromDataset(dds2,(n_element/2), n_element, dataset, collapseType);
-    merge(dds1,dds2,collapseType);
+    // insert items into the first sketch
+    returnValue = insertFromDataset(dds1, 0, ceil(n_element/2), dataset, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
 
-    testQuantile(dds1, dataset, n_element);
-    deleteElements(dds1, dataset, n_element, collapseType);
+    // insert items into the second sketch
+    returnValue = insertFromDataset(dds2,ceil(n_element/2), n_element, dataset, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
 
-    // reset dds1
-    DDS_Destroy(dds1);
-    dds1 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
+    /*** Merge ***/
 
+    returnValue = merge(dds1,dds2,collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    // compute the range of wrong quantiles
+    returnValue = getErrorBound(dds1, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    // test quantile
+    returnValue = testQuantile(dds1, dataset, n_element);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    // test delete
+    returnValue = deleteElements(dds1, dataset, n_element, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    /*** Test with one sketch ***/
     cout << BOLDRED << "Test with one sketch" << RESET << endl;
 
-    // Test result with only one sketch
-    insertFromDataset(dds1, 0, n_element, dataset, collapseType);
-    testQuantile(dds1, dataset, n_element);
-    deleteElements(dds1, dataset, n_element, collapseType);
-
-    // deallocate the sketch data structure
     DDS_Destroy(dds1);
-    DDS_Destroy(dds2);
+    dds1 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
+    if (!dds1) {
+        goto ON_EXIT;
+    }
 
-    delete[] dataset, dataset = nullptr;
+    // insert items into the sketch
+    returnValue = insertFromDataset(dds1, 0, n_element, dataset, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
 
-    return 0;
+    // compute the range of wrong quantiles
+    returnValue = getErrorBound(dds1, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    // test quantile
+    returnValue = testQuantile(dds1, dataset, n_element);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    // test delete
+    returnValue = deleteElements(dds1, dataset, n_element, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    /*** Deallocate the sketch data structure ***/
+
+    ON_EXIT:
+
+    if (dds1 != nullptr) {
+        DDS_Destroy(dds1);
+    }
+
+    if (dds2 != nullptr) {
+        DDS_Destroy(dds2);
+    }
+
+    if (dataset != nullptr) {
+        delete[] dataset, dataset = nullptr;
+    }
+
+    return returnValue;
 }
 
 int testMergeFromTwoDataset(const string& dataset1_name, const string& dataset2_name, int collapseType) {
 
-    // Test merge function with items from dataset
+    /*** Test merge function with items from dataset ***/
+
     cout << endl << BOLDRED << "Test with dataset: " << dataset1_name << " and " << dataset2_name << " initial alpha = " << DEFAULT_ALPHA << " bin limit = " << DEFAULT_BIN_LIMIT << RESET << endl << endl;
 
-    // init the sketch
-    DDS_type *dds1 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
-    DDS_type *dds2 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
+    int returnValue = -1;
+    DDS_type *dds1 = nullptr;
+    DDS_type *dds2 = nullptr;
+    double *dataset = nullptr;
+    double *dataset1 = nullptr;
+    double *dataset2 = nullptr;
 
-    // load dataset
-    int n_element1 = getDatasetSize(dataset1_name);
-    int n_element2 = getDatasetSize(dataset2_name);
+    int n_element1;
+    int n_element2;
 
-    // init array for all the elements
-    double* dataset = nullptr;
-    dataset = new (nothrow) double[n_element1+n_element2];
-    if(!dataset){
-        cout << "Not enough memory" << endl;
-        DDS_Destroy(dds1);
-        DDS_Destroy(dds2);
-        return -2;
+    /*** Init sketch ***/
+    dds1 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
+    if (!dds1) {
+        goto ON_EXIT;
     }
 
-    loadDataset(dataset1_name, dataset, 0);
-    loadDataset(dataset2_name, dataset, n_element1 + 1);
+    dds2 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
+    if (!dds2) {
+        goto ON_EXIT;
+    }
+
+    /*** Init array ***/
+    returnValue = getDatasetSize(dataset1_name, n_element1);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    returnValue = getDatasetSize(dataset2_name, n_element2);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    dataset1 = new (nothrow) double[n_element1];
+    if(!dataset1){
+        printError(MEMORY_ERROR, __FUNCTION__);
+        returnValue = MEMORY_ERROR;
+        goto ON_EXIT;
+    }
+
+    dataset2 = new (nothrow) double[n_element2];
+    if(!dataset2){
+        printError(MEMORY_ERROR, __FUNCTION__);
+        returnValue = MEMORY_ERROR;
+        goto ON_EXIT;
+    }
+
+    /*** Load dataset ***/
+    returnValue = loadDataset(dataset1_name, dataset1);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    returnValue = loadDataset(dataset2_name, dataset2);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    /*** Test with two sketches ***/
 
     cout << endl << BOLDRED << "Test with two sketches" << RESET << endl;
 
-    // Insert items into two sketches
-    insertFromDataset(dds1, 0, n_element1, dataset, collapseType);
-    insertFromDataset(dds2, n_element1, n_element1 + n_element2, dataset, collapseType);
-    merge(dds1,dds2,collapseType);
+    // insert items into the first sketch
+    returnValue = insertFromDataset(dds1, 0, n_element1, dataset1, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
 
-    testQuantile(dds1, dataset, n_element1 + n_element2);
-    deleteElements(dds1, dataset, n_element1 + n_element2, collapseType);
+    // insert items into the second sketch
+    returnValue = insertFromDataset(dds2, 0, n_element2, dataset2, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
 
-    // reset dds1
-    DDS_Destroy(dds1);
-    dds1 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
+    /*** Merge ***/
+
+    returnValue = merge(dds1,dds2,collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    dataset = new (nothrow) double[n_element1+n_element2];
+    if(!dataset){
+        printError(MEMORY_ERROR, __FUNCTION__);
+        returnValue = MEMORY_ERROR;
+        goto ON_EXIT;
+    }
+
+    // Merge dataset
+
+    try {
+        move( dataset1, dataset1+n_element1, dataset );
+        move( dataset2, dataset2+n_element2, dataset + n_element1 );
+    } catch (int e) {
+        printError(COPY_ERROR, __FUNCTION__);
+        returnValue = e;
+        goto ON_EXIT;
+    }
+
+    // compute the range of wrong quantiles
+    returnValue = getErrorBound(dds1, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    // test quantile
+    returnValue = testQuantile(dds1, dataset, n_element1 + n_element2);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    // test delete
+    returnValue = deleteElements(dds1, dataset, n_element1 + n_element2, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    /*** Test with one sketch ***/
 
     cout << BOLDRED << "Test with one sketch" << RESET << endl;
 
-    // Test result with only one sketch
-    insertFromDataset(dds1, 0, n_element1 + n_element2, dataset, collapseType);
-    testQuantile(dds1, dataset, n_element1 + n_element2);
-    deleteElements(dds1, dataset, n_element1 + n_element2, collapseType);
-
-    DDS_PrintCSV(dds1, "mergetwo.csv");
-
-    // deallocate the sketch data structure
     DDS_Destroy(dds1);
-    DDS_Destroy(dds2);
+    dds1 = DDS_Init(DEFAULT_OFFSET, DEFAULT_BIN_LIMIT, DEFAULT_ALPHA);
 
-    delete[] dataset, dataset = nullptr;
+    // insert items into the sketch
+    returnValue = insertFromDataset(dds1, 0, n_element1 + n_element2, dataset, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
 
-    return 0;
+    // compute the range of wrong quantiles
+    returnValue = getErrorBound(dds1, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    // test quantile
+    returnValue = testQuantile(dds1, dataset, n_element1 + n_element2);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    // test delete
+    returnValue = deleteElements(dds1, dataset, n_element1 + n_element2, collapseType);
+    if (returnValue) {
+        goto ON_EXIT;
+    }
+
+    /*** Deallocate the sketch data structure ***/
+
+    ON_EXIT:
+
+    if (dds1 != nullptr) {
+        DDS_Destroy(dds1);
+    }
+
+    if (dds2 != nullptr) {
+        DDS_Destroy(dds2);
+    }
+
+    if (dataset != nullptr) {
+        delete[] dataset, dataset = nullptr;
+    }
+
+    if (dataset1 != nullptr) {
+        delete[] dataset1, dataset1 = nullptr;
+    }
+
+    if (dataset2 != nullptr) {
+        delete[] dataset2, dataset2 = nullptr;
+    }
+
+    return returnValue;
 }
 
 int testQuantile(DDS_type *dds, double* stream, int n_element) {
 
-    int *error = new int;
-    *error = 0;
+    int returnValue = -1;
 
     // Determine the quantile
     float q[] = { 0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99};
@@ -587,82 +924,170 @@ int testQuantile(DDS_type *dds, double* stream, int n_element) {
         // note that we are not sorting the vector, we are using the quickselect() algorithm
         // which in C++ is available as std::nth_element
         nth_element(stream, stream + (idx-1), stream +  n_element);
-        double quantile = DDS_GetQuantile(dds, q[i], error);
-        if ( *error < 0 ) {
-            return *error;
-        }
-        if (quantile == numeric_limits<double>::quiet_NaN()) {
-            printError(QUANTILE_ERROR, __FUNCTION__);
-            return QUANTILE_ERROR;
+        double quantile;
+        returnValue = DDS_GetQuantile(dds, q[i], quantile);
+        if (returnValue < 0 ) {
+            return returnValue;
         }
 
-        double er = abs((quantile-stream[idx-1])/stream[idx-1]);
+        double error = abs((quantile-stream[idx-1])/stream[idx-1]);
 
-        cout << "|" << setw(10) << q[i]<< "|" << setw(15) << quantile << "|" << setw(15) << stream[idx-1] << "|"  << setw(15)<< er << "|" << endl;
+        cout << "|" << setw(10) << q[i]<< "|" << setw(15) << quantile << "|" << setw(15) << stream[idx-1] << "|"  << setw(15)<< error << "|" << endl;
 
     }
 
     cout << string(60, '-') << endl;
 
-    return  0;
+    return  returnValue;
 }
 
 int deleteElements(DDS_type* dds, double* stream, int n_element, int collapseType) {
 
-    int *error = new int;
-    *error = 0;
+    int returnValue = -1;
+
+    int size;
+    returnValue = DDS_Size(dds, size);
+    if (returnValue) {
+        return returnValue;
+    }
 
     // now check that delete works
-    cout <<  endl << "Sketch size (number of bins) before delete is equal to " << DDS_Size(dds) << endl;
+    cout <<  endl << "Sketch size (number of bins) before delete is equal to " << size << endl;
     cout << "Number of items in the sketch is equal to " << dds->n << endl << endl;
 
     for (int i = 0; i < n_element; i++) {
         switch (collapseType) {
             case 1:
-                *error = DDS_DeleteCollapse(dds, stream[i]);
-                if ( *error < 0 ) {
-                    return *error;
+                returnValue = DDS_DeleteCollapse(dds, stream[i]);
+                if (returnValue) {
+                    return returnValue;
                 }
                 break;
             case 2:
-                DDS_DeleteCollapseLastBucket(dds, stream[i]);
-                if ( *error < 0 ) {
-                    return *error;
+                returnValue = DDS_DeleteCollapseLastBucket(dds, stream[i]);
+                if (returnValue) {
+                    return returnValue;
                 }
                 break;
             case 3:
-                DDS_DeleteCollapseFirstBucket(dds, stream[i]);
-                if ( *error < 0 ) {
-                    return *error;
+                returnValue = DDS_DeleteCollapseFirstBucket(dds, stream[i]);
+                if (returnValue) {
+                    return returnValue;
                 }
+                break;
+            default:
+                printError(UNKNOWN_COLLAPSE_TYPE, __FUNCTION__);
+                return UNKNOWN_COLLAPSE_TYPE;
         }
     }
 
-    cout << "Sketch size (number of bins) after delete is equal to " << DDS_Size(dds) << endl;
+    returnValue = DDS_Size(dds, size);
+    if (returnValue < 0 ) {
+        return returnValue;
+    }
+
+    cout << "Sketch size (number of bins) after delete is equal to " << size << endl;
     cout << "Number of items in the sketch is equal to " << dds->n << endl << endl;
 
-    return *error;
+    return returnValue;
+}
+
+
+int getDatasetSize(const string &name_file, int &rows) {
+
+    rows = 0;
+
+    ifstream inputFile(name_file);
+    string line;
+    if(inputFile.is_open()){
+        while (getline(inputFile, line))
+            rows++;
+    } else {
+        printError(FILE_ERROR, __FUNCTION__);
+        return FILE_ERROR;
+    }
+
+    return SUCCESS;
+}
+
+int loadDataset(const string &name_file, double *dataset) {
+
+    if (!dataset) {
+        printError(NULL_POINTER_ERROR, __FUNCTION__);
+        return NULL_POINTER_ERROR;
+    }
+
+    ifstream inputFile(name_file);
+    string line;
+    int row = 0;
+
+    if(inputFile.is_open()){
+        while (getline(inputFile, line)) {
+
+            try {
+                dataset[row] = stod(line);
+            }
+            catch (int e) {
+                printError(FILE_ERROR, __FUNCTION__);
+                inputFile.close();
+                return FILE_ERROR;
+            }
+
+            row++;
+        }
+    } else {
+        printError(FILE_ERROR, __FUNCTION__);
+        return FILE_ERROR;
+    }
+
+    inputFile.close();
+
+    return SUCCESS;
 }
 
 int getErrorBound(DDS_type *dds, int collapseType) {
 
+    if(!dds){
+        printError(SKETCH_ERROR, __FUNCTION__);
+        return SKETCH_ERROR;
+    }
+
+    int returnValue = -1;
+
+    double count;
     double result;
+    double min, max;
 
     switch (collapseType) {
         case 1:
             cout << endl << "The estimates are always correct" << endl;
+            returnValue = 0;
             break;
         case 2:
-            result = dds->bins->rbegin()->second;
-            result = result / dds->n;
+            count = dds->bins->rbegin()->second;
+            result = count / dds->n;
             cout << endl << "The estimates are wrong with quantiles between " <<  (1-result) << " and " << 1 << endl;
+            returnValue = DDS_GetBounds(dds,dds->min, dds->max, min, max);
+            if (returnValue) {
+                break;
+            }
+            cout << "The last bucket contains value between " << min << " and " << max << ", last bucket counter = " << count << endl;
             break;
         case 3:
-            result = dds->bins->begin()->second;
-            result = result / dds->n;
+            count = dds->bins->begin()->second;
+            result = count / dds->n;
             cout << endl << "The estimates are wrong with quantiles between " <<  0 << " and " << result << endl;
+            returnValue = DDS_GetBounds(dds,dds->min, dds->max, min, max);
+            if (returnValue) {
+                break;
+            }
+            cout << "The first bucket contains value between " << min << " and " << max << ", first bucket counter = " << count << endl;
+            break;
+        default:
+            printError(UNKNOWN_COLLAPSE_TYPE, __FUNCTION__);
+            returnValue = UNKNOWN_COLLAPSE_TYPE;
     }
 
-    return 0;
+    return returnValue;
 }
 
