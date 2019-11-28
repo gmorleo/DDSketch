@@ -291,10 +291,6 @@ int DDS_AddCollapseLastBucket(DDS_type *dds, double item) {
             return returnValue;
         }
 
-        returnValue = DDS_Size(dds, size);
-        if (returnValue) {
-            return returnValue;
-        }
     }
 
     return returnValue;
@@ -337,10 +333,6 @@ int DDS_AddCollapseFirstBucket(DDS_type *dds, double item) {
             return returnValue;
         }
 
-        returnValue = DDS_Size(dds, size);
-        if (returnValue) {
-            return returnValue;
-        }
     }
 
     return returnValue;
@@ -418,12 +410,11 @@ int DDS_DeleteCollapseLastBucket(DDS_type *dds, double item) {
     }
 
     map<int, int>::iterator it;
-    map<int, int>::reverse_iterator rit;
 
     if ( key >= dds->min && key <= dds->max ) {
         // the key within the [min,max] interval
-        auto last = dds->bins->rbegin();
-        key = last->first;
+        auto last_bucket = dds->bins->rbegin();
+        key = last_bucket->first;
         it = dds->bins->find(key);
     } else {
         // the key is outside the [min,max] interval
@@ -793,19 +784,18 @@ int DDS_CollapseLastBucket(DDS_type *dds) {
     }
 
     // collapse the second bucket into the first bucket
+    auto last_bucket = dds->bins->rbegin();
+    auto second_last_bucket = ++dds->bins->rbegin();
 
-    auto last = dds->bins->rbegin();
-    auto second_last = --dds->bins->rbegin();
-
-    if ( second_last->first < dds->min) {
-        dds->min = (second_last->first);
+    if ( second_last_bucket->first < dds->min) {
+        dds->min = (second_last_bucket->first);
     }
-    if ( last->first > dds->max) {
-        dds->max = last->first;
+    if ( last_bucket->first > dds->max) {
+        dds->max = last_bucket->first;
     }
 
-    last->second += second_last->second;
-    dds->bins->erase(second_last->first);
+    last_bucket->second += second_last_bucket->second;
+    dds->bins->erase(second_last_bucket->first);
 
     return SUCCESS;
 }

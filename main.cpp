@@ -29,9 +29,8 @@
 
 using namespace std;
 
-/*const int DEFAULT_OFFSET = 1073741824; //2^31/2*/
-const int DEFAULT_OFFSET = 1000000; //2^31/2
-const int DEFAULT_BIN_LIMIT = 600;
+const int DEFAULT_OFFSET = 1073741824; //2^31/2
+const int DEFAULT_BIN_LIMIT = 500;
 const double DEFAULT_ALPHA = 0.008;
 
 template <class Distribution>
@@ -191,8 +190,8 @@ int main() {
     //returnValue = testWithRandomValue(n_element, uniform_real, 3);
     //returnValue = testWithRandomValue(n_element, normal, 1);
     //returnValue = testWithRandomValue(n_element, normal, 3);
-    //returnValue = testMergeWithRandomValue(n_element,n_element, uniform_real, uniform_real2,3);
-    returnValue = testMergeWithRandomValue(n_element,n_element,normal,exponential,1);
+    returnValue = testMergeWithRandomValue(n_element,n_element, uniform_real, uniform_real2,2);
+    //returnValue = testMergeWithRandomValue(n_element,n_element,normal,exponential,2);
 
     /// Test merge function
     /// Collapse type: 1 Collapse with gamma^2, 2 Collapse with last buckets, 3 Collapse with first bucket
