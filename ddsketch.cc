@@ -70,7 +70,7 @@ void DDS_Destroy(DDS_type *dds)
 int DDS_Size(DDS_type *dds, int &size)
 {
     if(!dds){
-        //printError(SKETCH_ERROR, __FUNCTION__);
+        printError(SKETCH_ERROR, __FUNCTION__);
         return SKETCH_ERROR;
     }
 
@@ -282,7 +282,7 @@ int DDS_AddCollapseLastBucket(DDS_type *dds, double item) {
         return returnValue;
     }
 
-    while ( size > dds->bin_limit ) {
+    if ( size > dds->bin_limit ) {
         // If the bin size is greater than bin_limit, we need to increase alpha and adapt all of the existing buckets to the new alpha value
 
         // collapse the second last bucket into the last bucket
@@ -328,7 +328,7 @@ int DDS_AddCollapseFirstBucket(DDS_type *dds, double item) {
         return returnValue;
     }
 
-    while ( size > dds->bin_limit ) {
+    if ( size > dds->bin_limit ) {
         // If the bin size is greater than bin_limit, we need to increase alpha and adapt all of the existing buckets to the new alpha value
 
         // collapse the second bucket into the first bucket
@@ -386,7 +386,10 @@ int DDS_DeleteCollapse(DDS_type *dds, double item) {
 
     }
     else{
-        cout << item << ", " << key << " without offset " << DDS_RemoveOffset(dds, key) <<", \n";
+        returnValue = DDS_RemoveOffset(dds, key);
+        if (returnValue) {
+            return returnValue;
+        }
         //dds->n -= 1;
         //cout << "There is no bin associated to item " << item << " with key " << key << endl;
 
@@ -447,7 +450,10 @@ int DDS_DeleteCollapseLastBucket(DDS_type *dds, double item) {
 
     }
     else{
-        //cout << item << ", " << DDS_RemoveOffset(dds, key) <<", \n";
+        returnValue = DDS_RemoveOffset(dds, key);
+        if (returnValue) {
+            return returnValue;
+        }
         //dds->n -= 1;
         //cout << "There is no bin associated to item " << item << " with key " << key << endl;
 
@@ -506,7 +512,10 @@ int DDS_DeleteCollapseFirstBucket(DDS_type *dds, double item) {
 
     }
     else{
-        //cout << item << ", " << DDS_RemoveOffset(dds, key) <<", \n";
+        returnValue = DDS_RemoveOffset(dds, key);
+        if (returnValue) {
+            return returnValue;
+        }
         //dds->n -= 1;
         //cout << "There is no bin associated to item " << item << " with key " << key << endl;
 
@@ -673,8 +682,15 @@ int DDS_MergeCollapseLastBucket(DDS_type *dds1, DDS_type *dds2) {
         return returnValue;
     }
 
-    while (size1 > dds1->bin_limit){
+    if ( dds2->min < dds1->min ) {
+        dds1->min = dds2->min;
+    }
 
+    if ( dds2->max > dds1->max ) {
+        dds1->max = dds2->max;
+    }
+
+    while (size1 > dds1->bin_limit){
         // If the bin size is more then the bin limit, we need to collapse the second last bucket in the last bucket
 
         returnValue = DDS_CollapseLastBucket(dds1);
@@ -721,7 +737,7 @@ int DDS_MergeCollapseFirstBucket(DDS_type *dds1, DDS_type *dds2) {
     startTheClock();
 
     // Check if the bins have the same alpha
-    if (fabs(dds1->alpha - dds2->alpha) > 0.0000001){
+    if (fabs(dds1->alpha - dds2->alpha) > 0.0001){
         printError(MERGE_ERROR, __FUNCTION__);
         return MERGE_ERROR;
     }
@@ -737,6 +753,14 @@ int DDS_MergeCollapseFirstBucket(DDS_type *dds1, DDS_type *dds2) {
     returnValue = DDS_Size(dds1, size1);
     if (returnValue) {
         return returnValue;
+    }
+
+    if ( dds2->min < dds1->min ) {
+        dds1->min = dds2->min;
+    }
+
+    if ( dds2->max > dds1->max ) {
+        dds1->max = dds2->max;
     }
 
     while (size1 > dds1->bin_limit){
@@ -918,7 +942,14 @@ int DDS_PrintCSV(DDS_type* dds, const string& name) {
             return returnValue;
         }
 
-        file << DDS_RemoveOffset(dds, bin.first) << ", " << bin.second << ", " << max << ", " << min << ", " << max - min << ", \n";
+        int key = bin.first;
+
+        returnValue = DDS_RemoveOffset(dds, key);
+        if (returnValue) {
+            return returnValue;
+        }
+
+        file << key << ", " << bin.second << ", " << max << ", " << min << ", " << max - min << ", \n";
 
     }
 
@@ -927,31 +958,28 @@ int DDS_PrintCSV(DDS_type* dds, const string& name) {
     return returnValue;
 }
 
-long DDS_SumBins(DDS_type *dds) {
-
-    int returnValue = 0;
+int DDS_SumBins(DDS_type *dds, int &sum) {
 
     if(!dds){
         printError(SKETCH_ERROR, __FUNCTION__);
-        returnValue = SKETCH_ERROR;
-        return  returnValue;
+        return  SKETCH_ERROR;
     }
 
-    long sum = 0;
+    sum = 0;
 
     for (auto & bin : (*(dds->bins))) {
         sum += bin.second;
     }
 
-    return sum;
+    return SUCCESS;
 }
 
-int DDS_RemoveOffset(DDS_type* dds, int i) {
+int DDS_RemoveOffset(DDS_type* dds, int &i) {
 
-/*    if(!dds){
+    if(!dds){
         printError(SKETCH_ERROR, __FUNCTION__);
-        returnValue = SKETCH_ERROR;
-    }*/
+        return SKETCH_ERROR;
+    }
 
     if (i > 0) {
         i -= dds->offset;
@@ -959,23 +987,7 @@ int DDS_RemoveOffset(DDS_type* dds, int i) {
         i += dds->offset;
     }
 
-    return i;
-}
-
-int DDS_AddOffset(DDS_type* dds, int i){
-
-/*    if(!dds){
-        printError(SKETCH_ERROR, __FUNCTION__);
-        error = SKETCH_ERROR;
-    }*/
-
-    if (i > 0) {
-        i += dds->offset;
-    } else {
-        i -= dds->offset;
-    }
-
-    return i;
+    return SUCCESS;
 }
 
 void startTheClock(){

@@ -4,6 +4,9 @@
 
 #include <iostream>
 
+#define BOLDMAGENTA "\033[1m\033[35m"      /* Bold Magenta */
+#define RESET   "\033[0m"
+
 const int SUCCESS = 0;
 const int GENERIC_ERROR = -1;
 const int MEMORY_ERROR = -2;

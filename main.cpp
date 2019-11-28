@@ -29,16 +29,27 @@
 
 using namespace std;
 
-const int DEFAULT_OFFSET = 1073741824; //2^31/2
-const int DEFAULT_BIN_LIMIT = 500;
+/*const int DEFAULT_OFFSET = 1073741824; //2^31/2*/
+const int DEFAULT_OFFSET = 1000000; //2^31/2
+const int DEFAULT_BIN_LIMIT = 600;
 const double DEFAULT_ALPHA = 0.008;
 
+template <class Distribution>
+void getDistributionName(Distribution distribution);
+
+/**
+ * @brief                   This function calculates the quantile confidence interval
+ * @param dds               The Sketch
+ * @param collapseType      Collapse type: 1 gamma^2, 2 last bucket, 3 first bucket
+ * @return                  0 in case of success, -4 in case of bad sketch data structure
+ */
 int getErrorBound(DDS_type *dds, int collapseType);
 
 /**
  * \brief                   This function computes the dimension of the dataset
  * @param name_file         Name of dataset
- * @return                  Return the number of element in the dataset(row)
+ * @param row               Where the number of row is stored
+ * @return                  0 in case of success, -3 in case of file error
  */
 int getDatasetSize(const string &name_file, int &rows);
 
@@ -46,22 +57,15 @@ int getDatasetSize(const string &name_file, int &rows);
  * \brief                   This function loads the dataset into an array
  * @param name_file         Name of dataset
  * @param dataset           Array
- * @return                  An array containing the whole dataset
+ * @return                  0 in case of success, -3 in case of file error, -9 in case of bad data structure
  */
 int loadDataset(const string &name_file, double *dataset);
-
-/**
- * @brief                   This function returns the distribution name
- * @param distribution      Code of distribution
- * @return                  Distribution name
- */
-string getDistributionName(int distribution);
 
 /**
  * @brief                   This function generates a csv file of (n_element) based on the normal distribution
  * @param name              Output file
  * @param n_element         Number of element in the dataset
- * @return                  0 success; \n-1 file opening failed;
+ * @return                  0 in case of success, -3 in case of file error
  */
 template <class Distribution>
 int printDataset(const string& name, int n_element, Distribution distribution);
@@ -74,7 +78,7 @@ int printDataset(const string& name, int n_element, Distribution distribution);
  * @param n_element         Number of element
  * @param distribution      Distribution
  * @param collapseType      Collapse type: 1 gamma^2, 2 last bucket, 3 first bucket
- * @return                  0 success -1 error
+ * @return                  0 in case of success, -4 in case of bad sketch data structure, -9 in case of bad data structure
  */
 template <class Distribution>
 int insertRandom(DDS_type *dds, double* stream, int n_element, Distribution distribution, int collapseType);
@@ -86,7 +90,7 @@ int insertRandom(DDS_type *dds, double* stream, int n_element, Distribution dist
  * @param stop              Dataset final index
  * @param dataset           Dataset
  * @param collapseType      Collapse type: 1 gamma^2, 2 last bucket, 3 first bucket
- * @return                  0 success -1 error
+ * @return                  0 in case of success, -4 in case of bad sketch data structure, -9 in case of bad data structure
  */
 int insertFromDataset(DDS_type* dds, int start, int stop, double* dataset, int collapseType);
 
@@ -95,7 +99,7 @@ int insertFromDataset(DDS_type* dds, int start, int stop, double* dataset, int c
  * @param dds1              First sketch
  * @param dds2              Second sketch
  * @param collapseType      Collapse type: 1 gamma^2, 2 last bucket, 3 first bucke
- * @return                  0 success -1 error
+ * @return                  0 in case of success, -4 in case of bad sketch data structure, -5 in case of the two sketches cannot be merged
  */
 int merge(DDS_type* dds1, DDS_type* dds2, int collapseType);
 
@@ -104,7 +108,7 @@ int merge(DDS_type* dds1, DDS_type* dds2, int collapseType);
  * @param n_element         Number of element
  * @param distribution      Distribution
  * @param collapseType      Collapse type: 1 gamma^2, 2 last bucket, 3 first bucket
- * @return                  0 success -1 error
+ * @return                  0 in case of success, -2 in case of memory error, -4 in case of bad sketch data structure, -9 in case of bad data structure
  */
 template <class Distribution>
 int testWithRandomValue(int n_element, Distribution distribution, int collapseType);
@@ -117,17 +121,17 @@ int testWithRandomValue(int n_element, Distribution distribution, int collapseTy
  * @param distribution1     First distribution
  * @param distribution2     Second distribution
  * @param collapseType      Collapse type: 1 gamma^2, 2 last bucket, 3 first bucket
- * @return                  0 success -1 error
+ * @return                  0 in case of success, -2 in case of memory error, -4 in case of bad sketch data structure, -5 in case of the two sketches cannot be merged, -9 in case of bad data structur
  */
-template <class Distribution>
-int testMergeWithRandomValue(int n_element1, int n_element2, Distribution distribution1, Distribution distribution2, int collapseType);
+template <class Distribution1, class Distribution2>
+int testMergeWithRandomValue(int n_element1, int n_element2, Distribution1 distribution1, Distribution2 distribution2, int collapseType);
 
 /**
  * @brief                   This function tests the merge of two sketches, entering (dataset size/2) in the first sketch
  *                          and (dataset size/2) in the second sketch from a dataset and using the selected type of collapsing
  * @param dataset_name      Dataset name
  * @param collapseType      Collapse type: 1 gamma^2, 2 last bucket, 3 first bucket
- * @return                  0 success -1 error
+ * @return                  0 in case of success, -2 in case of memory error, -3 in case of file error, -4 in case of bad sketch data structure, -5 in case of the two sketches cannot be merged, -9 in case of bad data structure
  */
 int testMergeFromDataset(const string& dataset_name, int collapseType);
 
@@ -137,7 +141,7 @@ int testMergeFromDataset(const string& dataset_name, int collapseType);
  * @param dataset1_name     Name first dataset
  * @param dataset2_name     Name second dataset
  * @param collapseType      Collapse type: 1 gamma^2, 2 last bucket, 3 first bucket
- * @return                  0 success -1 error
+ * @return                  0 in case of success, -2 in case of memory error, -3 in case of file error, -4 in case of bad sketch data structure, -5 in case of the two sketches cannot be merged, -9 in case of bad data structure
  */
 int testMergeFromTwoDataset(const string& dataset1_name, const string& dataset2_name, int collapseType);
 
@@ -147,16 +151,16 @@ int testMergeFromTwoDataset(const string& dataset1_name, const string& dataset2_
  * @param stream            Vector that contains all the real values inserted
  * @param n_element         Number of element
  * @param collapseType      Collapse type: 1 gamma^2, 2 last bucket, 3 first bucket
- * @return                  0 success -1 error
+ * @return                  0 in case of success, -2 in case of memory error, -3 in case of file error, -4 in case of bad sketch data structure, -5 in case of the two sketches cannot be merged, -9 in case of bad data structure
  */
 int deleteElements(DDS_type* dds, double* stream, int n_element, int collapseType);
 
 /**
- * @brief               This function computes the quantile
- * @param dds           Parameters of the sketch
- * @param stream        Vector that contains all the real values inserted
- * @param n_element     Number of element
- * @return              0: success; \n-2: error;
+ * @brief                   This function computes the quantile
+ * @param dds               Parameters of the sketch
+ * @param stream            Vector that contains all the real values inserted
+ * @param n_element         Number of element
+ * @return                  0 in case of success, -4 in case of bad sketch data structure, -6 in case of q isn't in the [0,1] range -9 in case of bad data structure
  */
 int testQuantile(DDS_type *dds, double* stream, int n_element);
 
@@ -166,13 +170,15 @@ int testQuantile(DDS_type *dds, double* stream, int n_element);
  */
 int main() {
 
+    int returnValue = -1;
+
     /// Init the distribution
     default_random_engine generator;
     normal_distribution<double> normal(2,3);
     normal_distribution<double> normal2(10,3);
     exponential_distribution<double> exponential(17);
-    uniform_real_distribution<double> uniform_real(-5,5);
-    uniform_real_distribution<double> uniform_real2(0,10);
+    uniform_real_distribution<double> uniform_real(-50,0);
+    uniform_real_distribution<double> uniform_real2(10,400000);
     gamma_distribution<double> gamma(2,2);
 
     /// number of element
@@ -181,23 +187,23 @@ int main() {
     /// Test with random value
     /// Collapse type: 1 Collapse with gamma^2, 2 Collapse with last buckets, 3 Collapse with first buckets
 
-    //testWithRandomValue(n_element, uniform_real, 3);
-    //testWithRandomValue(n_element, uniform_real, 3);
-    //testWithRandomValue(n_element, normal, 1);
-    //testWithRandomValue(n_element, normal, 3);
-    //testMergeWithRandomValue(n_element,n_element,uniform_real,uniform_real2,1);
-    //testMergeWithRandomValue(n_element,n_element,uniform_real,uniform_real2,3);
+    //returnValue = testWithRandomValue(n_element, uniform_real, 3);
+    //returnValue = testWithRandomValue(n_element, uniform_real, 3);
+    //returnValue = testWithRandomValue(n_element, normal, 1);
+    //returnValue = testWithRandomValue(n_element, normal, 3);
+    //returnValue = testMergeWithRandomValue(n_element,n_element, uniform_real, uniform_real2,3);
+    returnValue = testMergeWithRandomValue(n_element,n_element,normal,exponential,1);
 
     /// Test merge function
     /// Collapse type: 1 Collapse with gamma^2, 2 Collapse with last buckets, 3 Collapse with first bucket
 
-    //testMergeFromDataset("normal.csv", 1);
-    testMergeFromTwoDataset("normal.csv", "uniform_real.csv", 1);
+    //returnValue = testMergeFromDataset("normal.csv", 1);
+    //returnValue = testMergeFromTwoDataset("normal.csv", "uniform_real.csv", 1);
 
     /// Print dataset on a file
-    //printDataset("uniform_real.csv", 10000000, uniform_real);
+    //returnValue = printDataset("uniform_real.csv", 10000000, uniform_real);
 
-    return 0;
+    return returnValue;
 }
 
 template <class Distribution>
@@ -231,27 +237,41 @@ int printDataset(const string& name, int n_element, Distribution distribution) {
     return SUCCESS;
 }
 
-string getDistributionName(int distribution) {
-    switch (distribution) {
-        case 1:
-            return "normal";
-        case 2:
-            return "exponential";
-        case 3:
-            return "uniform real";
-        case 4:
-            return "gamma";
-        case 5:
-            return "chi sqared";
-        case 6:
-            return "weibull";
-        default:
-            return "Wrong distribution code";
+template <class Distribution>
+void getDistributionName(Distribution distribution) {
+
+    string name = typeid(distribution).name();
+
+    if ( name == "St19normal_distributionIdE" ) {
+        cout << "normal";
     }
+
+    if ( name == "St24exponential_distributionIdE" ) {
+        cout << "exponential";
+    }
+
+    if ( name == "St25uniform_real_distributionIdE" ) {
+        cout << "uniform real";
+    }
+
+    if ( name == "St18gamma_distributionIdE" ) {
+        cout << "gamma";
+    }
+
 }
 
 template <class Distribution>
 int insertRandom(DDS_type *dds, double* stream, int n_element, Distribution distribution, int collapseType) {
+
+    if (!stream) {
+        printError(NULL_POINTER_ERROR, __FUNCTION__);
+        return NULL_POINTER_ERROR;
+    }
+
+    if(!dds){
+        printError(SKETCH_ERROR, __FUNCTION__);
+        return SKETCH_ERROR;
+    }
 
     int returnValue = -1;
 
@@ -300,6 +320,16 @@ int insertRandom(DDS_type *dds, double* stream, int n_element, Distribution dist
 
 int insertFromDataset(DDS_type* dds, int start, int stop, double* dataset, int collapseType) {
 
+    if (!dataset) {
+        printError(NULL_POINTER_ERROR, __FUNCTION__);
+        return NULL_POINTER_ERROR;
+    }
+
+    if(!dds){
+        printError(SKETCH_ERROR, __FUNCTION__);
+        return SKETCH_ERROR;
+    }
+
     int returnValue = -1;
 
     // insert item into  our DDSketch
@@ -334,6 +364,11 @@ int insertFromDataset(DDS_type* dds, int start, int stop, double* dataset, int c
 }
 
 int merge(DDS_type* dds1, DDS_type* dds2, int collapseType) {
+
+    if(!dds1 || !dds2){
+        printError(SKETCH_ERROR, __FUNCTION__);
+        return SKETCH_ERROR;
+    }
 
     int returnValue = -1;
 
@@ -370,7 +405,9 @@ int testWithRandomValue(int n_element, Distribution distribution, int collapseTy
 
     /*** Test sketch with random values ***/
 
-    cout << endl << BOLDRED << "Test with distribution: " << " initial alpha = " << DEFAULT_ALPHA << " bin limit = " << DEFAULT_BIN_LIMIT << RESET << endl;
+    cout << endl << BOLDRED << "Test with distribution: ";
+    getDistributionName(distribution);
+    cout << " initial alpha = " << DEFAULT_ALPHA << " bin limit = " << DEFAULT_BIN_LIMIT << RESET << endl;
 
     int returnValue = -1;
     DDS_type* dds1 = nullptr;
@@ -428,12 +465,16 @@ int testWithRandomValue(int n_element, Distribution distribution, int collapseTy
     return returnValue;
 }
 
-template <class Distribution>
-int testMergeWithRandomValue(int n_element1, int n_element2, Distribution distribution1, Distribution distribution2, int collapseType) {
+template <class Distribution1, class Distribution2>
+int testMergeWithRandomValue(int n_element1, int n_element2, Distribution1 distribution1, Distribution2 distribution2, int collapseType) {
 
     /*** Test merge function with random values ***/
 
-    cout << endl << BOLDRED << "Test with distribution: " << " initial alpha = " << DEFAULT_ALPHA << " bin limit = " << DEFAULT_BIN_LIMIT << RESET << endl;
+    cout << endl << BOLDRED << "Test with distribution 1: ";
+    getDistributionName(distribution1);
+    cout << " and distribution 2: ";
+    getDistributionName(distribution2);
+    cout << " initial alpha = " << DEFAULT_ALPHA << " bin limit = " << DEFAULT_BIN_LIMIT << RESET << endl;
 
     int returnValue = -1;
     DDS_type *dds1 = nullptr;
@@ -906,6 +947,16 @@ int testMergeFromTwoDataset(const string& dataset1_name, const string& dataset2_
 
 int testQuantile(DDS_type *dds, double* stream, int n_element) {
 
+    if (!stream) {
+        printError(NULL_POINTER_ERROR, __FUNCTION__);
+        return NULL_POINTER_ERROR;
+    }
+
+    if(!dds){
+        printError(SKETCH_ERROR, __FUNCTION__);
+        return SKETCH_ERROR;
+    }
+
     int returnValue = -1;
 
     // Determine the quantile
@@ -942,6 +993,16 @@ int testQuantile(DDS_type *dds, double* stream, int n_element) {
 }
 
 int deleteElements(DDS_type* dds, double* stream, int n_element, int collapseType) {
+
+    if (!stream) {
+        printError(NULL_POINTER_ERROR, __FUNCTION__);
+        return NULL_POINTER_ERROR;
+    }
+
+    if(!dds){
+        printError(SKETCH_ERROR, __FUNCTION__);
+        return SKETCH_ERROR;
+    }
 
     int returnValue = -1;
 
