@@ -1,8 +1,8 @@
-# DDSketch: A Fast and Fully-Mergeable Quantile Sktech with Relative-Error Guarantees
+# Sequential implementation of DDSketch algorithm
 
-> Subtitle or Short Description Goes Here
+Sequential implementation of DDSketch algorithm of Charles Masson, Jee E. Rim, and Homin K. Lee. 2019. DDSketch: a fast and fully-mergeable quantile sketch with relative-error guarantees. Proc. VLDB Endow. 12, 12 (August 2019), 2195-2205. DOI: https://doi.org/10.14778/3352063.3352135
 
-> ideally one sentence
+# Authors
 
-> include terms/tags that can be searched
+* **Giuseppe Morleo**,  University of Salento, Italy
 
